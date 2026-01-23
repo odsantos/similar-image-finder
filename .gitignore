@@ -1,0 +1,25 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+
+# --- Databases ---
+# We want the app to create a fresh DB for each user
+*.db
+*.sqlite3
+
+# --- PyInstaller / Building ---
+# These are generated during the 'build.yml' process or local testing
+build/
+dist/
+*.spec
+
+# --- OS Specific ---
+.DS_Store
+Thumbs.db
+
+# --- Assets ---
+# Only ignore if you have large temporary raw assets
+# We usually keep the 'assets/images/icon.png' in the repo
