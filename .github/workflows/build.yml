@@ -3,20 +3,27 @@ name: Build Release
 on:
   push:
     tags:
-      - 'v*.*.*'
-  workflow_dispatch:
+      - 'v*'
 
 jobs:
   build:
-    name: Build Executable
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+        include:
+          - os: ubuntu-latest
+            artifact_name: SI-Finder-Linux
+            extension: AppImage
+          - os: windows-latest
+            artifact_name: SI-Finder-Windows
+            extension: zip
+          - os: macos-latest
+            artifact_name: SI-Finder-macOS
+            extension: zip
 
     steps:
-      - name: Check out code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -25,13 +32,11 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install pyinstaller pillow imagehash customtkinter
+          pip install customtkinter pillow imagehash pyinstaller
 
       - name: Build with PyInstaller
         shell: bash
         run: |
-          # 1. Determine Icon and Separator based on OS
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             ICON="assets/images/app_icon.ico"
             SEP=";"
@@ -43,68 +48,46 @@ jobs:
             SEP=":"
           fi
           
-          # 2. Get CustomTkinter path for bundling
+          # Get CustomTkinter location for assets
           CTK_PATH=$(python -c "import customtkinter; import os; print(os.path.dirname(customtkinter.__file__))")
           
-          # 3. Run PyInstaller
           pyinstaller --noconfirm --onefile --windowed \
             --name "SI-Finder" \
             --icon="$ICON" \
             --add-data "${CTK_PATH}${SEP}customtkinter" \
-            --collect-all customtkinter \
+            --add-data "assets${SEP}assets" \
             main.py
 
-      - name: Package Artifact (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          cd dist
-          powershell Compress-Archive -Path "SI-Finder.exe" -DestinationPath "../SI-Finder-Windows.zip"
-
-      - name: Package Artifact (macOS)
-        if: matrix.os == 'macos-latest'
-        run: |
-          cd dist
-          zip -r "../SI-Finder-macOS.zip" "SI-Finder.app"
-
-      - name: Package Artifact (Linux AppImage)
+      - name: Create Linux AppImage
         if: matrix.os == 'ubuntu-latest'
         run: |
-          sudo apt-get update && sudo apt-get install -y libfuse2
-          wget -c "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool.AppImage
-          chmod +x appimagetool.AppImage
-          mkdir -p AppDir/usr/bin
-          cp dist/SI-Finder AppDir/usr/bin/
-          echo -e "[Desktop Entry]\nName=SI-Finder\nExec=SI-Finder\nIcon=icon\nType=Application\nCategories=Utility;" > AppDir/si-finder.desktop
-          cp assets/images/icon-1024x1024.png AppDir/icon.png
-          ln -s usr/bin/SI-Finder AppDir/AppRun
-          ./appimagetool.AppImage AppDir "SI-Finder-Linux.AppImage"
+          sudo apt-get install -y fuse
+          wget -c https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+          mkdir SI-Finder.AppDir
+          cp dist/SI-Finder SI-Finder.AppDir/
+          cp assets/images/icon-1024x1024.png SI-Finder.AppDir/SI-Finder.png
+          echo -e '[Desktop Entry]\nName=SI Finder\nExec=SI-Finder\nIcon=SI-Finder\nType=Application\nCategories=Graphics;' > SI-Finder.AppDir/SI-Finder.desktop
+          ln -s SI-Finder SI-Finder.AppDir/AppRun
+          ./appimagetool-x86_64.AppImage SI-Finder.AppDir SI-Finder-Linux.AppImage
 
-      - name: Upload Artifacts to Job
-        uses: actions/upload-artifact@v4
-        with:
-          name: SI-Finder-${{ matrix.os }}
-          path: |
-            SI-Finder-*.zip
-            SI-Finder-Linux.AppImage
+      - name: Package Windows/macOS
+        if: matrix.os != 'ubuntu-latest'
+        shell: bash
+        run: |
+          cd dist
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            powershell Compress-Archive -Path SI-Finder.exe -DestinationPath ../${{ matrix.artifact_name }}.zip
+          else
+            zip -r ../${{ matrix.artifact_name }}.zip SI-Finder.app || zip -r ../${{ matrix.artifact_name }}.zip SI-Finder
+          fi
 
-  release:
-    name: Create Release
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Create Draft Release
+      - name: Upload Release Assets
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            artifacts/SI-Finder-windows-latest/*.zip
-            artifacts/SI-Finder-macos-latest/*.zip
-            artifacts/SI-Finder-ubuntu-latest/*.AppImage
-          draft: true
-          generate_release_notes: true
+            SI-Finder-Linux.AppImage
+            SI-Finder-Windows.zip
+            SI-Finder-macOS.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

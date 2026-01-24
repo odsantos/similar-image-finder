@@ -3,15 +3,31 @@ from PIL import Image
 import imagehash
 import sqlite3
 import os
+import sys
 from tkinter import filedialog, messagebox
 from i18n import translations
 
+# --- PyInstaller Path Helper ---
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 # Configuration
-VERSION = "v1.0.0"
-DB_NAME = "images_metadata.db"
+VERSION = "v1.0.2"
+DB_NAME = "images_metadata.db" # Database stays in current working dir, not temp
 
 ctk.set_appearance_mode("Dark")
-ctk.set_default_color_theme("teal")
+
+# Safety wrapper for CustomTkinter themes in bundled environments
+try:
+    ctk.set_default_color_theme("teal")
+except Exception:
+    ctk.set_default_color_theme("blue")
 
 class ImageFinderApp(ctk.CTk):
     def __init__(self):
@@ -91,75 +107,3 @@ class ImageFinderApp(ctk.CTk):
         return conn
 
     def run_indexing(self):
-        folder = filedialog.askdirectory()
-        if not folder: return
-        
-        conn = self.get_db_connection()
-        cursor = conn.cursor()
-        
-        valid_exts = ('.png', '.jpg', '.jpeg', '.webp')
-        files = [os.path.join(folder, f) for f in os.listdir(folder) if f.lower().endswith(valid_exts)]
-
-        for path in files:
-            try:
-                mtime = os.path.getmtime(path)
-                cursor.execute("SELECT last_modified FROM images WHERE path=?", (path,))
-                row = cursor.fetchone()
-                
-                if not row or row[0] != mtime:
-                    with Image.open(path) as img:
-                        h = str(imagehash.phash(img))
-                    cursor.execute("INSERT OR REPLACE INTO images VALUES (?, ?, ?)", (path, h, mtime))
-            except Exception: continue
-        
-        conn.commit()
-        conn.close()
-        messagebox.showinfo("Done", translations[self.lang]["indexing_done"])
-
-    def run_search(self):
-        target_path = filedialog.askopenfilename()
-        if not target_path: return
-
-        for widget in self.scrollable_frame.winfo_children():
-            widget.destroy()
-
-        with Image.open(target_path) as img:
-            target_hash = imagehash.phash(img)
-
-        conn = self.get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT path, hash FROM images")
-        
-        matches = []
-        threshold = self.threshold_slider.get()
-
-        for path, h_str in cursor.fetchall():
-            if not os.path.exists(path): continue
-            dist = target_hash - imagehash.hex_to_hash(h_str)
-            if dist <= threshold:
-                matches.append((dist, path))
-        
-        matches.sort(key=lambda x: x[0])
-        self.display_matches(matches)
-        conn.close()
-
-    def display_matches(self, matches):
-        for i, (dist, path) in enumerate(matches):
-            card = ctk.CTkFrame(self.scrollable_frame)
-            card.grid(row=i // 4, column=i % 4, padx=10, pady=10, sticky="nsew")
-
-            try:
-                img = Image.open(path)
-                ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(120, 120))
-                img_label = ctk.CTkLabel(card, image=ctk_img, text="")
-                img_label.pack(pady=5)
-            except:
-                ctk.CTkLabel(card, text=translations[self.lang]["error_loading"]).pack()
-
-            ctk.CTkLabel(card, text=f"Dist: {int(dist)}", font=("Arial", 11, "bold")).pack()
-            filename = os.path.basename(path)
-            ctk.CTkLabel(card, text=filename, font=("Arial", 10), wraplength=120).pack(pady=(0,5))
-
-if __name__ == "__main__":
-    app = ImageFinderApp()
-    app.mainloop()
