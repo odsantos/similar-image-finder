@@ -17,7 +17,7 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 # Configuration
-VERSION = "v1.0.3"
+VERSION = "v1.0.4"
 DB_NAME = "images_metadata.db" 
 
 ctk.set_appearance_mode("Dark")
