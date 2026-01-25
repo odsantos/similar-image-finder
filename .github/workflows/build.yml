@@ -16,37 +16,58 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
+
       - name: Install dependencies
-        run: pip install customtkinter pillow imagehash pyinstaller
+        run: |
+          pip install customtkinter pillow imagehash pyinstaller
+
       - name: Build with PyInstaller
         shell: bash
         run: |
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            ICON="assets/images/icon.ico"; SEP=";"; OPTS="--onefile"
+            ICON="assets/images/icon.ico"
+            SEP=";"
+            OPTS="--onefile"
           elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-            ICON="assets/images/icon.icns"; SEP=":"; OPTS="--onedir"
+            ICON="assets/images/icon.icns"
+            SEP=":"
+            OPTS="--onedir"
           else
-            ICON="assets/images/icon-1024x1024.png"; SEP=":"; OPTS="--onefile"
+            ICON="assets/images/icon-1024x1024.png"
+            SEP=":"
+            OPTS="--onefile"
           fi
+          
+          # Locate CustomTkinter to bundle themes/json files correctly
           CTK_PATH=$(python -c "import customtkinter; import os; print(os.path.dirname(customtkinter.__file__))")
-          pyinstaller --noconfirm $OPTS --windowed --name "SI-Finder" --icon="$ICON" --add-data "${CTK_PATH}${SEP}customtkinter" --add-data "assets${SEP}assets" main.py
+          
+          pyinstaller --noconfirm $OPTS --windowed \
+            --name "SI-Finder" \
+            --icon="$ICON" \
+            --add-data "${CTK_PATH}${SEP}customtkinter" \
+            --add-data "assets${SEP}assets" \
+            main.py
 
       - name: Create Linux AppImage
         if: matrix.os == 'ubuntu-latest'
         run: |
-          sudo apt-get install -y fuse
-          wget -c https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage
+          # Use the continuous release link and bypass FUSE requirements
+          wget -c https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool-x86_64.AppImage
+          
           mkdir SI-Finder.AppDir
           cp dist/SI-Finder SI-Finder.AppDir/
           cp assets/images/icon-1024x1024.png SI-Finder.AppDir/SI-Finder.png
           echo -e '[Desktop Entry]\nName=SI Finder\nExec=SI-Finder\nIcon=SI-Finder\nType=Application\nCategories=Graphics;' > SI-Finder.AppDir/SI-Finder.desktop
           ln -s SI-Finder SI-Finder.AppDir/AppRun
-          ./appimagetool-x86_64.AppImage SI-Finder.AppDir SI-Finder-Linux.AppImage
+          
+          # Extract and run avoids FUSE issues in GitHub runners
+          ./appimagetool-x86_64.AppImage --appimage-extract-and-run SI-Finder.AppDir SI-Finder-Linux.AppImage
 
       - name: Package Windows/macOS (Flat Structure)
         if: matrix.os != 'ubuntu-latest'
@@ -54,8 +75,10 @@ jobs:
         run: |
           cd dist
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            # Zip the .exe directly for Windows
             powershell Compress-Archive -Path SI-Finder.exe -DestinationPath ../SI-Finder-Windows.zip
           else
+            # Zip the .app bundle for macOS
             zip -r ../SI-Finder-macOS.zip SI-Finder.app
           fi
 

@@ -19,7 +19,7 @@ translations = {
         "sens_help_title": "Sensitivity Help",
         "sens_help_msg": "Sensitivity (Lower = Stricter).\n\n'Dist' (Distance) - Difference between hashes: \n  - 0: Identical images.\n  - 1-10: Highly similar.\n  - 10-20: Visually related.",
         "url_help_title": "Web Link Help",
-        "url_help_msg": "If your images follow a naming pattern, you can set a Base URL to open the corresponding webpage directly."
+        "url_help_msg": "If your images follow the 'l_IDp_ID' naming pattern, you can set a Base URL to open the corresponding webpage directly."
     },
     "pt": {
         "title": "SI Finder",
@@ -41,6 +41,6 @@ translations = {
         "sens_help_title": "Ajuda de Sensibilidade",
         "sens_help_msg": "Sensibilidade (Menor = Mais Estrito).\n\n'Dist' (Distância) - Diferença entre hashes:\n  - 0: Imagens idênticas.\n  - 1-10: Muito semelhantes.\n  - 10-20: Visualmente relacionadas.",
         "url_help_title": "Ajuda de Link Web",
-        "url_help_msg": "Se as suas imagens seguem um padrão de nomenclatura, pode definir um URL Base para abrir a página web correspondente diretamente."
+        "url_help_msg": "Se as suas imagens seguem o padrão de nomenclatura 'l_IDp_ID', pode definir um URL Base para abrir a página web correspondente diretamente."
     }
 }
