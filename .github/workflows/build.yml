@@ -50,7 +50,7 @@ jobs:
             --name "SI-Finder" \
             --icon="$ICON" \
             --add-data "${CTK_PATH}${SEP}customtkinter" \
-            --add-data "assets${SEP}assets" \
+            --add-data "assets/images${SEP}assets/images" \
             main.py
 
       - name: Create Linux AppImage

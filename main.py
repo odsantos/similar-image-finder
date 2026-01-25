@@ -62,6 +62,8 @@ class ImageFinderApp(ctk.CTk):
                 self.icon_image = Image.open(icon_p)
                 self.tk_icon = ImageTk.PhotoImage(self.icon_image.resize((32, 32)))
                 self.iconphoto(True, self.tk_icon)
+                # Fix for Linux title bars/taskbars
+                self.wm_iconphoto(True, self.tk_icon)
         except: pass
             
         self.setup_ui()
@@ -342,10 +344,20 @@ class ImageFinderApp(ctk.CTk):
 
     def display_matches(self, matches):
         self.thumbnails = [] 
-        globe_img = Image.open(resource_path("assets/images/globe.png")).resize((20, 20))
-        folder_img = Image.open(resource_path("assets/images/folder.png")).resize((20, 20))
-        ctk_globe = ctk.CTkImage(light_image=globe_img, dark_image=globe_img, size=(20, 20))
-        ctk_folder = ctk.CTkImage(light_image=folder_img, dark_image=folder_img, size=(20, 20))
+        t = translations[self.lang]
+        
+        # Load helper icons using resource_path
+        try:
+            globe_p = resource_path("assets/images/globe.png")
+            folder_p = resource_path("assets/images/folder.png")
+            globe_img = Image.open(globe_p).resize((20, 20))
+            folder_img = Image.open(folder_p).resize((20, 20))
+            ctk_globe = ctk.CTkImage(light_image=globe_img, dark_image=globe_img, size=(20, 20))
+            ctk_folder = ctk.CTkImage(light_image=folder_img, dark_image=folder_img, size=(20, 20))
+        except:
+            # Fallback if icons are missing
+            ctk_globe = None
+            ctk_folder = None
 
         for i, (dist, path) in enumerate(matches):
             card = ctk.CTkFrame(self.scrollable_frame)
@@ -356,16 +368,28 @@ class ImageFinderApp(ctk.CTk):
                 ctk_img = ctk.CTkImage(light_image=raw_img, dark_image=raw_img, size=(120, 120))
                 self.thumbnails.append(ctk_img) 
                 ctk.CTkLabel(card, image=ctk_img, text="").pack(pady=5)
-            except: ctk.CTkLabel(card, text=translations[self.lang]["error_loading"]).pack()
+            except: 
+                # Use translated error and current dynamic font size
+                ctk.CTkLabel(card, text=t["error_loading"], font=("Arial", self.current_font_size)).pack(pady=40)
 
-            filename = os.path.basename(path).lower()
+            filename = os.path.basename(path)
             ctk.CTkLabel(card, text=filename, font=("Arial", self.current_font_size, "bold"), wraplength=120).pack(pady=0)
             ctk.CTkLabel(card, text=f"Dist: {int(dist)}", font=("Arial", self.current_font_size - 2), text_color=("gray30", "gray70")).pack(pady=(0, 5))
             
             btn_frame = ctk.CTkFrame(card, fg_color="transparent")
             btn_frame.pack(pady=5)
-            ctk.CTkButton(btn_frame, image=ctk_globe, text="", width=30, height=30, fg_color="transparent", hover_color=("gray80", "gray20"), command=lambda p=path: self.handle_web_click(p)).pack(side="left", padx=5)
-            ctk.CTkButton(btn_frame, image=ctk_folder, text="", width=30, height=30, fg_color="transparent", hover_color=("gray80", "gray20"), command=lambda p=path: open_file_explorer(p)).pack(side="left", padx=5)
+            
+            # Globe button (Web link)
+            ctk.CTkButton(btn_frame, image=ctk_globe, text="" if ctk_globe else "Web", 
+                         width=30, height=30, fg_color="transparent", 
+                         hover_color=("gray80", "gray20"), 
+                         command=lambda p=path: self.handle_web_click(p)).pack(side="left", padx=5)
+            
+            # Folder button (Local explorer)
+            ctk.CTkButton(btn_frame, image=ctk_folder, text="" if ctk_folder else "File", 
+                         width=30, height=30, fg_color="transparent", 
+                         hover_color=("gray80", "gray20"), 
+                         command=lambda p=path: open_file_explorer(p)).pack(side="left", padx=5)
 
 if __name__ == "__main__":
     app = ImageFinderApp()
