@@ -8,55 +8,32 @@ on:
 jobs:
   build:
     runs-on: ${{ matrix.os }}
-    # Granting permissions here as well to be safe
     permissions:
       contents: write
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        include:
-          - os: ubuntu-latest
-            artifact_name: SI-Finder-Linux
-          - os: windows-latest
-            artifact_name: SI-Finder-Windows
-          - os: macos-latest
-            artifact_name: SI-Finder-macOS
 
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-
       - name: Install dependencies
-        run: |
-          pip install customtkinter pillow imagehash pyinstaller
-
+        run: pip install customtkinter pillow imagehash pyinstaller
       - name: Build with PyInstaller
         shell: bash
         run: |
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            ICON="assets/images/app_icon.ico"
-            SEP=";"
+            ICON="assets/images/icon.ico"; SEP=";"; OPTS="--onefile"
           elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-            ICON="assets/images/app_icon.icns"
-            SEP=":"
+            ICON="assets/images/icon.icns"; SEP=":"; OPTS="--onedir"
           else
-            ICON="assets/images/icon-1024x1024.png"
-            SEP=":"
+            ICON="assets/images/icon-1024x1024.png"; SEP=":"; OPTS="--onefile"
           fi
-          
-          # Get CustomTkinter location to bundle themes
           CTK_PATH=$(python -c "import customtkinter; import os; print(os.path.dirname(customtkinter.__file__))")
-          
-          pyinstaller --noconfirm --onefile --windowed \
-            --name "SI-Finder" \
-            --icon="$ICON" \
-            --add-data "${CTK_PATH}${SEP}customtkinter" \
-            --add-data "assets${SEP}assets" \
-            main.py
+          pyinstaller --noconfirm $OPTS --windowed --name "SI-Finder" --icon="$ICON" --add-data "${CTK_PATH}${SEP}customtkinter" --add-data "assets${SEP}assets" main.py
 
       - name: Create Linux AppImage
         if: matrix.os == 'ubuntu-latest'
@@ -75,24 +52,18 @@ jobs:
         if: matrix.os != 'ubuntu-latest'
         shell: bash
         run: |
+          cd dist
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            # Enter dist so the ZIP contains the .exe directly
-            cd dist
             powershell Compress-Archive -Path SI-Finder.exe -DestinationPath ../SI-Finder-Windows.zip
           else
-            # Enter dist so the ZIP contains the .app folder directly
-            cd dist
-            if [ -d "SI-Finder.app" ]; then
-              zip -r ../SI-Finder-macOS.zip SI-Finder.app
-            else
-              zip -r ../SI-Finder-macOS.zip SI-Finder
-            fi
+            zip -r ../SI-Finder-macOS.zip SI-Finder.app
           fi
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
+          draft: true
           files: |
             SI-Finder-Linux.AppImage
             SI-Finder-Windows.zip

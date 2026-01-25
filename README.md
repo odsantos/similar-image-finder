@@ -2,7 +2,7 @@
 
 A lightweight, cross-platform desktop application designed to find visually similar images within a directory using Perceptual Hashing (pHash).
 
-![Version](https://img.shields.io/badge/version-1.0.0-teal)
+![Version](https://img.shields.io/badge/version-1.2.1-teal)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey)
 
@@ -10,41 +10,57 @@ A lightweight, cross-platform desktop application designed to find visually simi
 
 - **Visual Search:** Find images that "look" like your target, even if they have different filenames or resolutions.
 - **Thumbnail Grid:** View matches in a responsive, modern gallery layout.
+- **Web Integration:** Open related webpages directly from results if filenames follow the `l_IDp_ID` pattern.
 - **Multi-language Support:** Fully localized in English and Portuguese.
 - **Adjustable Sensitivity:** Use the threshold slider to find exact duplicates or loose variations.
 - **Fast Indexing:** Uses an SQLite database to remember image hashes, making subsequent searches near-instant.
-- **Independent & Portable:** No installation required. Available as AppImage (Linux), ZIP (macOS), and EXE (Windows).
+- **Independent & Portable:** No installation required.
 
-## 🛠️ Installation
+## 📥 Get the App
 
-Simply download the latest version from the [Releases](https://github.com/odsantos/similar-image-finder/releases) page.
+### 💎 Professional Builds (Recommended)
 
-- **Windows:** Download the `.zip`, extract, and run `SI-Finder.exe`.
-- **Linux:** Download the `.AppImage`, make it executable (`chmod +x`), and run.
-- **macOS:** Download the `.zip`, extract, and move to your Applications folder.
+For the best experience, download the pre-compiled, ready-to-run official bundles. These require no technical setup—just extract and run.
+
+- **[Download for Windows, macOS, & Linux on Gumroad](https://osvaldosantos.gumroad.com/)**
+
+*Purchasing a build helps support the continued development and maintenance of this project!*
+
+### 🛠️ Build from Source (Advanced)
+
+If you prefer to run the application using your own Python environment:
+
+1. **Clone the repository:**
+
+   ```bash
+   git clone [https://github.com/odsantos/similar-image-finder.git](https://github.com/odsantos/similar-image-finder.git)
+
+   cd similar-image-finder
+   ```
+
+2. **Install dependencies:**
+
+    ```bash
+    pip install customtkinter pillow imagehash
+    ```
+
+3. **Run the application:**
+
+    ```bash
+    python main.py
+    ```
 
 ## 📖 How to Use
 
-1. **Index:** Click "Index Directory" and select the folder containing your images (e.g., your website's assets).
-2. **Adjust:** Set the "Sensitivity" slider. Lower numbers mean the images must be almost identical.
-3. **Search:** Click "Search Similar Image" and select the image you want to find variations of.
-4. **Browse:** Results with thumbnails and "Distance" scores will appear in the grid.
-
-## 🏗️ Development
-
-If you want to run the source code locally:
-
-```bash
-# Clone the repository
-git clone [https://github.com/odsantos/similar-image-finder.git](https://github.com/odsantos/similar-image-finder.git)
-cd similar-image-finder
-
-# Install dependencies
-pip install customtkinter pillow imagehash
-```
+1. **Index:** Click "Index Folder" and select the directory containing your images.
+2. **Search:** Click "Search Image" and select the reference image to find similar items.
+3. **Adjust (Optional):** If you want more or fewer results, move the "Sensitivity" slider. 
+   - **Lower numbers (0-5):** Best for finding exact duplicates.
+   - **Higher numbers (10+):** Best for finding looser variations.
+4. **Browse:** Results appear in the grid. Click the **Globe** icon for web links or the **Folder** icon to locate the file on your computer.
 
 ## 📄 License
-
+ 
 Distributed under the MIT License. See [LICENSE](./LICENSE) file for the full text.
 
-Developed by [osantos](https://github.com/odsantos)
+Developed by [odsantos](https://github.com/odsantos)
