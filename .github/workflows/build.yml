@@ -40,7 +40,9 @@ jobs:
       - name: Build with PyInstaller
         shell: bash
         run: |
+          # Locate CustomTkinter for bundling
           CTK_PATH=$(python -c "import customtkinter; import os; print(os.path.dirname(customtkinter.__file__))")
+          
           pyinstaller \
             --name "si_finder" \
             --windowed \
@@ -61,6 +63,7 @@ jobs:
       - name: Package macOS
         if: matrix.os == 'macos-latest'
         run: |
+          # Move the native folder to the uniform name
           mv dist/si_finder.app SI-Finder.app
           zip -r SI-Finder-macOS.zip SI-Finder.app
 
@@ -69,14 +72,24 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libfuse2
+          
           wget -c "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool.AppImage
           chmod +x appimagetool.AppImage
+          
+          # Build AppDir
           mkdir -p AppDir/usr/bin
           cp dist/si_finder AppDir/usr/bin/si-finder
+          
+          # Create desktop file
           echo -e '[Desktop Entry]\nName=SI Finder\nExec=si-finder\nIcon=si-finder\nType=Application\nCategories=Graphics;' > AppDir/si-finder.desktop
           cp assets/images/icon-1024x1024.png AppDir/si-finder.png
+          
           ln -s usr/bin/si-finder AppDir/AppRun
+          
+          # Generate final AppImage
           ./appimagetool.AppImage AppDir SI-Finder.AppImage
+          
+          # Wrap AppImage in SI-Finder.app folder and zip
           mkdir SI-Finder.app
           mv SI-Finder.AppImage SI-Finder.app/
           zip -r SI-Finder-Linux.zip SI-Finder.app
@@ -85,7 +98,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          draft: false
+          draft: true
           prerelease: false
           files: |
             SI-Finder-Linux.zip
