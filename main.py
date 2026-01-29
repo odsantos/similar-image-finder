@@ -11,7 +11,8 @@ import subprocess
 from tkinter import filedialog, messagebox
 from i18n import translations
 
-VERSION = "v1.2.1"
+# Try to get version from environment (set by build script), otherwise use default
+VERSION = os.getenv("APP_VERSION", "v1.2.2") 
 DB_NAME = "images_metadata.db"
 DEFAULT_URL = "https://your-website.com/search?id="
 REPO_URL = "https://github.com/odsantos/similar-image-finder"
