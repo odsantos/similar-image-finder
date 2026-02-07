@@ -8,6 +8,7 @@ import urllib.parse
 import threading
 import re
 import webbrowser
+import logging
 import subprocess
 import hashlib
 from tkinter import filedialog
@@ -964,7 +965,8 @@ class ImageFinderApp(ctk.CTk):
             )
             self.thumbnails.append(ctk_img)
             ctk.CTkLabel(card, image=ctk_img, text="").pack(pady=5)
-        except:
+        except Exception as e:
+            logging.exception(f"Error loading or displaying image: {path}")
             ctk.CTkLabel(card, text="Error").pack(pady=40)
         ctk.CTkLabel(
             card,
