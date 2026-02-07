@@ -125,13 +125,30 @@ class ImageFinderApp(ctk.CTk):
         self.update_ui_text()
 
     def get_app_dir(self):
-        if getattr(sys, "frozen", False):
-            base_dir = os.path.dirname(sys.executable)
+        """
+        Returns a writable directory for storing application data (databases).
+        - Windows: %APPDATA%/SI-Finder
+        - macOS: ~/Library/Application Support/SI-Finder
+        - Linux: ~/.local/share/SI-Finder (or $XDG_DATA_HOME)
+        """
+        if sys.platform == "win32":
+            base_dir = os.path.join(os.environ["APPDATA"], "SI-Finder")
+        elif sys.platform == "darwin":
+            base_dir = os.path.expanduser("~/Library/Application Support/SI-Finder")
         else:
-            base_dir = os.path.dirname(os.path.abspath(__file__))
+            # Linux / Unix
+            xdg_data_home = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
+            base_dir = os.path.join(xdg_data_home, "SI-Finder")
 
-        if sys.platform == "darwin" and "Contents/MacOS" in base_dir:
-            return os.path.abspath(os.path.join(base_dir, "../../.."))
+        if not os.path.exists(base_dir):
+            try:
+                os.makedirs(base_dir, exist_ok=True)
+            except OSError as e:
+                print(f"Error creating data directory {base_dir}: {e}")
+                # Fallback to tmp if user dir is not writable (unlikely but safe)
+                base_dir = os.path.join(os.environ.get("TMPDIR", "/tmp"), "SI-Finder_Data")
+                os.makedirs(base_dir, exist_ok=True)
+
         return base_dir
 
     def get_db_connection(self, specific_db=None):
