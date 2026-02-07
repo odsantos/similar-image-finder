@@ -2,7 +2,7 @@
 
 A lightweight, cross-platform desktop application designed to find visually similar images within a directory using Perceptual Hashing (pHash).
 
-![Version](https://img.shields.io/badge/version-1.2.1-teal)
+![Version](https://img.shields.io/badge/version-1.2.3-teal)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey)
 
