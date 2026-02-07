@@ -170,6 +170,7 @@ class ImageFinderApp(ctk.CTk):
             self.active_popup.destroy()
 
         popup = ctk.CTkToplevel(self)
+        popup.withdraw()
         popup.title(title)
         popup.transient(self)
 
@@ -201,7 +202,6 @@ class ImageFinderApp(ctk.CTk):
         self.current_info_msg_key = message_key
 
         info_window = self._manage_popup(t.get(title_key, title_key), "info")
-        info_window.withdraw()
         self.center_toplevel(info_window, 450, 300)
         info_window.grid_columnconfigure(0, weight=1)
         info_window.grid_rowconfigure((0, 2), weight=1)
@@ -233,6 +233,7 @@ class ImageFinderApp(ctk.CTk):
         self._manage_popup(t.get("manage_indexes_title", "Manage Indexes"), "load")
         self.center_toplevel(self.active_popup, 500, 400)
         self.refresh_load_index_content()
+        self.active_popup.deiconify()
 
     def refresh_load_index_content(self):
         if not self.active_popup or self.active_popup_type != "load":
@@ -352,6 +353,7 @@ class ImageFinderApp(ctk.CTk):
         )
         cancel_button.pack(side="right", padx=10)
         self.update_font_globally(dialog)
+        dialog.deiconify()
 
     def delete_index(self, db_file):
         if self.db_path == db_file:
@@ -417,6 +419,7 @@ class ImageFinderApp(ctk.CTk):
             hover_color=HOVER_BLUE,
         )
         ok_btn.grid(row=4, column=0, pady=(0, 25))
+        about_window.deiconify()
         self.update_about_text()
         self.update_font_globally(about_window)
 
