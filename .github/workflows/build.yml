@@ -49,6 +49,8 @@ jobs:
             ${{ matrix.os == 'macos-latest' && '--onedir' || '--onefile' }} \
             --add-data "assets${{ steps.set_separator.outputs.separator }}assets" \
             --add-data "${CTK_PATH}${{ steps.set_separator.outputs.separator }}customtkinter" \
+            --hidden-import=PIL.ImageTk \
+            --hidden-import=PIL._tkinter_finder \
             --icon "${{ matrix.os == 'windows-latest' && 'assets/images/icon.ico' || (matrix.os == 'macos-latest' && 'assets/images/icon.icns' || 'assets/images/icon-1024x1024.png') }}" \
             main.py
 
