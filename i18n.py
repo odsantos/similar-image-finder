@@ -3,6 +3,7 @@ translations = {
         "title": "SI Finder",
         "index_button": "Index Folder",
         "search_button": "Search Image",
+        "current_search_folder": "Search Folder:",
         "threshold_label": "Sensitivity:",
         "results_label": "Results",
         "about_button": "About",
@@ -19,12 +20,23 @@ translations = {
         "sens_help_title": "Sensitivity Help",
         "sens_help_msg": "Sensitivity (Lower = Stricter).\n\n'Dist' (Distance) - Difference between hashes: \n  - 0: Identical images.\n  - 1-10: Highly similar.\n  - 10-20: Visually related.",
         "url_help_title": "Web Link Help",
-        "url_help_msg": "If your images follow the \"l_IDp_ID\" naming pattern, you can set a Base URL to open the corresponding webpage directly."
+        "url_help_msg": "If your images follow the \"l_IDp_ID\" naming pattern, you can set a Base URL to open the corresponding webpage directly.",
+        "manage_indexes_button": "Manage Indexes",
+        "manage_indexes_title": "Manage Indexes",
+        "no_indexes_found": "No index files found.",
+        "status_index_loaded": "Index Loaded",
+        "select": "Select",
+        "delete_button": "Delete",
+        "delete_index_confirm_title": "Confirm Deletion",
+        "delete_index_confirm_message": "Are you sure you want to delete this index? This action cannot be undone.",
+        "confirm_button": "Confirm",
+        "cancel_button": "Cancel"
     },
     "pt": {
         "title": "SI Finder",
         "index_button": "Indexar Pasta",
         "search_button": "Buscar Imagem",
+        "current_search_folder": "Pasta de Busca:",
         "threshold_label": "Sensibilidade:",
         "results_label": "Resultados",
         "about_button": "Sobre",
@@ -41,6 +53,16 @@ translations = {
         "sens_help_title": "Ajuda de Sensibilidade",
         "sens_help_msg": "Sensibilidade (Menor = Mais Estrito).\n\n'Dist' (Distância) - Diferença entre hashes:\n  - 0: Imagens idênticas.\n  - 1-10: Muito semelhantes.\n  - 10-20: Visualmente relacionadas.",
         "url_help_title": "Ajuda de Link Web",
-        "url_help_msg": "Se as suas imagens seguem o padrão de nomenclatura \"l_IDp_ID\", pode definir um URL Base para abrir a página web correspondente diretamente."
+        "url_help_msg": "Se as suas imagens seguem o padrão de nomenclatura \"l_IDp_ID\", pode definir um URL Base para abrir a página web correspondente diretamente.",
+        "manage_indexes_button": "Gerir Índices",
+        "manage_indexes_title": "Gerir Índices",
+        "no_indexes_found": "Nenhum índice encontrado.",
+        "status_index_loaded": "Índice Carregado",
+        "select": "Selecionar",
+        "delete_button": "Apagar",
+        "delete_index_confirm_title": "Confirmar Remoção",
+        "delete_index_confirm_message": "Tem a certeza que quer apagar este índice? Esta ação não pode ser desfeita.",
+        "confirm_button": "Confirmar",
+        "cancel_button": "Cancelar"
     }
 }
