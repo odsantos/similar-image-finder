@@ -30,7 +30,9 @@ translations = {
         "delete_index_confirm_title": "Confirm Deletion",
         "delete_index_confirm_message": "Are you sure you want to delete this index? This action cannot be undone.",
         "confirm_button": "Confirm",
-        "cancel_button": "Cancel"
+        "cancel_button": "Cancel",
+        "search_folder_missing_title": "Search Folder Missing",
+        "search_folder_missing_msg": "Please select an index using 'Index Folder' or 'Manage Indexes' before searching for images."
     },
     "pt": {
         "title": "SI Finder",
@@ -63,6 +65,8 @@ translations = {
         "delete_index_confirm_title": "Confirmar Remoção",
         "delete_index_confirm_message": "Tem a certeza que quer apagar este índice? Esta ação não pode ser desfeita.",
         "confirm_button": "Confirmar",
-        "cancel_button": "Cancelar"
+        "cancel_button": "Cancelar",
+        "search_folder_missing_title": "Pasta de Busca Ausente",
+        "search_folder_missing_msg": "Por favor, selecione um índice usando 'Indexar Pasta' ou 'Gerir Índices' antes de buscar imagens."
     }
 }

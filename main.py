@@ -4,7 +4,6 @@ import imagehash
 import sqlite3
 import os
 import sys
-import urllib.parse
 import threading
 import re
 import webbrowser
@@ -13,7 +12,6 @@ import subprocess
 import hashlib
 from tkinter import filedialog
 from i18n import translations
-import shlex
 
 VERSION = "v1.2.3"
 DEFAULT_URL = "https://your-website.com/search?id="
@@ -24,7 +22,7 @@ STD_HEIGHT = 32
 
 
 def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
+    """Get absolute path to resource, works for dev and for PyInstaller"""
     try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
         base_path = sys._MEIPASS
@@ -47,34 +45,49 @@ def reveal_file_in_explorer(file_path):
         else:  # Linux
             # Method 1: Try DBus (universal for modern desktops)
             try:
-                subprocess.run([
-                    "dbus-send", "--session", "--print-reply", 
-                    "--dest=org.freedesktop.FileManager1", 
-                    "/org/freedesktop/FileManager1", 
-                    "org.freedesktop.FileManager1.ShowItems", 
-                    f"array:string:file://{file_path}", "string:"
-                ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                subprocess.run(
+                    [
+                        "dbus-send",
+                        "--session",
+                        "--print-reply",
+                        "--dest=org.freedesktop.FileManager1",
+                        "/org/freedesktop/FileManager1",
+                        "org.freedesktop.FileManager1.ShowItems",
+                        f"array:string:file://{file_path}",
+                        "string:",
+                    ],
+                    check=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
                 return
             except (subprocess.CalledProcessError, FileNotFoundError):
                 pass
-            
+
             # Method 2: Check for specific file managers
             managers = [
-                ('nautilus', '--select'), 
-                ('dolphin', '--select'), 
-                ('nemo', '--no-desktop'), 
-                ('caja', '--select'), 
-                ('thunar', '--select'), 
-                ('pcmanfm', '--select')
+                ("nautilus", "--select"),
+                ("dolphin", "--select"),
+                ("nemo", "--no-desktop"),
+                ("caja", "--select"),
+                ("thunar", "--select"),
+                ("pcmanfm", "--select"),
             ]
-            
+
             for cmd, arg in managers:
-                if subprocess.call(['which', cmd], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0:
+                if (
+                    subprocess.call(
+                        ["which", cmd],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
+                    == 0
+                ):
                     subprocess.Popen([cmd, arg, file_path])
                     return
 
             # Method 3: Fallback to opening parent directory
-            subprocess.Popen(['xdg-open', os.path.dirname(file_path)])
+            subprocess.Popen(["xdg-open", os.path.dirname(file_path)])
 
     except Exception as e:
         print(f"Error revealing file in explorer: {e}")
@@ -91,7 +104,7 @@ def open_directory_in_explorer(dir_path):
         elif sys.platform == "darwin":
             subprocess.run(["open", dir_path])
         else:  # Linux
-            subprocess.Popen(['xdg-open', dir_path])
+            subprocess.Popen(["xdg-open", dir_path])
     except Exception as e:
         print(f"Error opening directory in explorer: {e}")
 
@@ -138,7 +151,9 @@ class ImageFinderApp(ctk.CTk):
             base_dir = os.path.expanduser("~/Library/Application Support/SI-Finder")
         else:
             # Linux / Unix
-            xdg_data_home = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
+            xdg_data_home = os.environ.get(
+                "XDG_DATA_HOME", os.path.expanduser("~/.local/share")
+            )
             base_dir = os.path.join(xdg_data_home, "SI-Finder")
 
         if not os.path.exists(base_dir):
@@ -147,7 +162,9 @@ class ImageFinderApp(ctk.CTk):
             except OSError as e:
                 print(f"Error creating data directory {base_dir}: {e}")
                 # Fallback to tmp if user dir is not writable (unlikely but safe)
-                base_dir = os.path.join(os.environ.get("TMPDIR", "/tmp"), "SI-Finder_Data")
+                base_dir = os.path.join(
+                    os.environ.get("TMPDIR", "/tmp"), "SI-Finder_Data"
+                )
                 os.makedirs(base_dir, exist_ok=True)
 
         return base_dir
@@ -164,20 +181,37 @@ class ImageFinderApp(ctk.CTk):
         conn.execute("CREATE TABLE IF NOT EXISTS info (key TEXT UNIQUE, value TEXT)")
         return conn
 
+    def _handle_mousewheel_event(self, event, scrollable_frame):
+        """Redirects mouse wheel events to a specific scrollable frame's canvas."""
+        # event.num is for Linux (4=up, 5=down); event.delta is for Windows/macOS
+        if event.num == 4:
+            scrollable_frame._parent_canvas.yview_scroll(-1, "units")
+        elif event.num == 5:
+            scrollable_frame._parent_canvas.yview_scroll(1, "units")
+        elif event.delta:
+            # Standardize delta (Windows/macOS)
+            scroll_amount = int(-1 * (event.delta / 120))
+            scrollable_frame._parent_canvas.yview_scroll(scroll_amount, "units")
+
+    def bind_tree(self, widget, callback):
+        """Recursively binds mousewheel events to a widget and all its children."""
+        events = ["<MouseWheel>", "<Button-4>", "<Button-5>"]
+        for event in events:
+            widget.bind(event, callback)
+
+        # Apply to all child widgets (labels, images, frames, etc.)
+        for child in widget.winfo_children():
+            self.bind_tree(child, callback)
+
     def _manage_popup(self, title, popup_type):
         """Creates a modal popup window that blocks main window interaction."""
         if self.active_popup is not None and self.active_popup.winfo_exists():
             self.active_popup.destroy()
 
         popup = ctk.CTkToplevel(self)
-        popup.withdraw()
+        popup.withdraw()  # Hide the window immediately upon creation
         popup.title(title)
         popup.transient(self)
-
-        # Logic to make it modal
-        popup.lift()
-        popup.attributes("-topmost", True)
-        popup.grab_set()
 
         popup.after(100, lambda: popup.focus_force())
         self.active_popup = popup
@@ -192,7 +226,7 @@ class ImageFinderApp(ctk.CTk):
 
         x_pos = main_win_x + (main_win_width - width) // 2
         y_pos = main_win_y + (main_win_height - height) // 2
-        
+
         toplevel.geometry(f"{width}x{height}+{x_pos}+{y_pos}")
 
     def show_custom_info(self, title_key, message_key):
@@ -226,14 +260,16 @@ class ImageFinderApp(ctk.CTk):
         ok_button.grid(row=3, column=0, pady=(0, 25))
 
         self.update_font_globally(info_window)
-        info_window.after(10, info_window.deiconify)
+        info_window.after(10, lambda: [info_window.deiconify(), info_window.grab_set()])
 
-    def show_load_index_window(self):
+    def show_load_index_window(self, title_key_override=None):
         t = translations[self.lang]
-        self._manage_popup(t.get("manage_indexes_title", "Manage Indexes"), "load")
+        self._manage_popup(t.get(title_key_override or "manage_indexes_title", "Manage Indexes"), "load")
         self.center_toplevel(self.active_popup, 500, 400)
         self.refresh_load_index_content()
-        self.active_popup.deiconify()
+        self.active_popup.after(
+            10, lambda: [self.active_popup.deiconify(), self.active_popup.grab_set()]
+        )
 
     def refresh_load_index_content(self):
         if not self.active_popup or self.active_popup_type != "load":
@@ -243,6 +279,11 @@ class ImageFinderApp(ctk.CTk):
         t = translations[self.lang]
         scroll = ctk.CTkScrollableFrame(self.active_popup)
         scroll.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Bind mouse wheel events directly to the scroll frame itself for empty areas
+        scroll.bind("<MouseWheel>", lambda e: self._handle_mousewheel_event(e, scroll)) # Windows/macOS
+        scroll.bind("<Button-4>", lambda e: self._handle_mousewheel_event(e, scroll))   # Linux scroll up
+        scroll.bind("<Button-5>", lambda e: self._handle_mousewheel_event(e, scroll))   # Linux scroll down
         app_dir = self.get_app_dir()
         db_files = sorted([f for f in os.listdir(app_dir) if f.endswith(".db")])
         if not db_files:
@@ -278,7 +319,7 @@ class ImageFinderApp(ctk.CTk):
                 text=source_path,
                 font=("Arial", self.current_font_size),
                 text_color="gray",
-                wraplength=400
+                wraplength=400,
             ).pack(anchor="w")
 
             # Button frame
@@ -303,9 +344,14 @@ class ImageFinderApp(ctk.CTk):
                 command=lambda f=db_file: self.show_confirmation_dialog(
                     "delete_index_confirm_title",
                     "delete_index_confirm_message",
-                    lambda: self.delete_index(f)
+                    lambda: self.delete_index(f),
                 ),
             ).grid(row=0, column=1, sticky="ew", padx=(5, 0))
+
+            # THE FIX: Bind mouse wheel to this card and all its children
+            # We pass 'scroll' so the handler knows which canvas to move
+            self.bind_tree(item_frame, lambda e: self._handle_mousewheel_event(e, scroll))
+
 
         self.update_font_globally(self.active_popup)
 
@@ -338,7 +384,7 @@ class ImageFinderApp(ctk.CTk):
             height=STD_HEIGHT,
             command=on_confirm,
             fg_color="red",
-            hover_color="#c00"
+            hover_color="#c00",
         )
         confirm_button.pack(side="left", padx=10)
 
@@ -353,14 +399,14 @@ class ImageFinderApp(ctk.CTk):
         )
         cancel_button.pack(side="right", padx=10)
         self.update_font_globally(dialog)
-        dialog.deiconify()
+        dialog.after(10, lambda: [dialog.deiconify(), dialog.grab_set()])
 
     def delete_index(self, db_file):
         if self.db_path == db_file:
             self.db_path = None
             self.clear_search_results()
             self.update_ui_text()
-        
+
         try:
             os.remove(os.path.join(self.get_app_dir(), db_file))
         except Exception as e:
@@ -384,11 +430,22 @@ class ImageFinderApp(ctk.CTk):
                     conn.close()
 
     def set_active_db(self, db_file, window):
+        print(f"DEBUG: set_active_db called with db_file={db_file}, window={window}")
         self.db_path = db_file
         self.clear_search_results()
         self.status_state = "index_loaded"
         self.update_ui_text()
+        print(f"DEBUG: Destroying window {window}")
         window.destroy()
+        print(f"DEBUG: Window destroyed. Checking pending search...")
+
+        if hasattr(self, '_pending_search_after_index_selection') and self._pending_search_after_index_selection:
+            print(f"DEBUG: Pending search found. Re-triggering start_search_thread.")
+            self._pending_search_after_index_selection = False # Reset flag to avoid infinite loops
+            self.after(0, self.start_search_thread) # Call start_search_thread on next idle cycle
+        else:
+            print(f"DEBUG: No pending search.")
+        print(f"DEBUG: set_active_db finished.")
 
     def show_about(self):
         t = translations[self.lang]
@@ -419,7 +476,9 @@ class ImageFinderApp(ctk.CTk):
             hover_color=HOVER_BLUE,
         )
         ok_btn.grid(row=4, column=0, pady=(0, 25))
-        about_window.deiconify()
+        about_window.after(
+            50, lambda: [about_window.deiconify(), about_window.grab_set()]
+        )
         self.update_about_text()
         self.update_font_globally(about_window)
 
@@ -445,8 +504,18 @@ class ImageFinderApp(ctk.CTk):
 
     def change_font_size(self, size):
         self.current_font_size = int(size)
-        self.update_ui_text()
-        self.update_font_globally(self)
+        
+        # Destroy existing option menus
+        if hasattr(self, 'font_size_menu') and self.font_size_menu.winfo_exists():
+            self.font_size_menu.destroy()
+        if hasattr(self, 'lang_menu') and self.lang_menu.winfo_exists():
+            self.lang_menu.destroy()
+
+        self.update_ui_text() # This updates texts of other widgets
+        self.update_font_globally(self) # This updates fonts of other widgets
+
+        # Re-create option menus with the new font size
+        self._create_option_menus(self.current_font_size)
 
     def update_slider_label(self, val):
         self.threshold_value_label.configure(text=str(int(val)))
@@ -482,6 +551,45 @@ class ImageFinderApp(ctk.CTk):
             if hasattr(widget, "winfo_children") and widget.winfo_children():
                 self.update_font_globally(widget)
 
+    def _create_option_menus(self, font_size):
+        # Language Option Menu (Packed last, so visually at the very bottom)
+        self.lang_menu = ctk.CTkOptionMenu(
+            self.sidebar_frame,
+            values=["en", "pt"],
+            height=STD_HEIGHT - 4, # Adjusted height
+            command=self.change_language,
+            fg_color=PRIMARY_BLUE,
+            button_color=PRIMARY_BLUE,
+            button_hover_color=HOVER_BLUE,
+            font=ctk.CTkFont(size=font_size)
+        )
+        self.lang_menu.pack(side="bottom", padx=20, pady=(5, 5))
+        self.lang_menu.set(self.lang) # Set initial selected value
+
+        # Font Size Option Menu
+        self.font_size_menu = ctk.CTkOptionMenu(
+            self.sidebar_frame,
+            values=["12", "14", "16", "18", "20"],
+            height=STD_HEIGHT - 4, # Adjusted height
+            command=self.change_font_size,
+            fg_color=PRIMARY_BLUE,
+            button_color=PRIMARY_BLUE,
+            button_hover_color=HOVER_BLUE,
+            font=ctk.CTkFont(size=font_size)
+        )
+        self.font_size_menu.pack(side="bottom", padx=20, pady=(5, 5))
+        self.font_size_menu.set(str(font_size)) # Set initial selected value
+
+        # Dark Mode Toggle (Packed before option menus, so visually above them)
+        self.theme_switch = ctk.CTkSwitch(
+            self.sidebar_frame,
+            text="",
+            command=self.toggle_theme,
+            progress_color=PRIMARY_BLUE,
+        )
+        self.theme_switch.pack(side="bottom", padx=20, pady=(5, 5))
+        self.theme_switch.select()
+
     def on_repeat_hover(self, event):
         if self.last_search_image:
             self.previous_status_text = self.status_label.cget("text")
@@ -501,7 +609,9 @@ class ImageFinderApp(ctk.CTk):
         self.title(t["title"])
         self.index_button.configure(text=t["index_button"])
         self.search_button.configure(text=t["search_button"])
-        self.load_index_button.configure(text=t.get("manage_indexes_button", "Manage Indexes"))
+        self.load_index_button.configure(
+            text=t.get("manage_indexes_button", "Manage Indexes")
+        )
         self.label_threshold.configure(text=t["threshold_label"])
         self.url_label.configure(text=t["base_url"])
         self.theme_switch.configure(text=t["dark_mode"])
@@ -518,7 +628,18 @@ class ImageFinderApp(ctk.CTk):
         else:
             status_text = ""
 
-        self.status_label.configure(text=status_text, text_color=("black", "white"))
+        if self.status_state == "searching":
+            self.status_label.configure(
+                text=status_text,
+                text_color=("black", "white"),
+                fg_color=("#ffcb76", "#997a00")  # Amber/Gold (between yellow and orange)
+            )
+        else:
+            self.status_label.configure(
+                text=status_text,
+                text_color=("black", "white"),
+                fg_color="transparent"
+            )
         self.previous_status_text = status_text
 
         source_path = None
@@ -537,19 +658,21 @@ class ImageFinderApp(ctk.CTk):
         if source_path:
             self.folder_info_label.configure(
                 text=t.get("current_search_folder", "Search Folder:"),
-                text_color=("black", "white") # Ensure consistency with other labels
+                text_color=("black", "white"),  # Ensure consistency with other labels
             )
             self.folder_path_display.configure(
-                text=source_path, 
+                text=source_path,
                 fg_color=("gray90", "gray20"),
-                text_color=("#1f538d", "#5dade2"), # Light blue for dark mode
+                text_color=("#1f538d", "#5dade2"),  # Light blue for dark mode
             )
         else:
-            self.folder_info_label.configure(text="", text_color=("gray", "gray")) # Ensure consistency
+            self.folder_info_label.configure(
+                text="", text_color=("gray", "gray")
+            )  # Ensure consistency
             self.folder_path_display.configure(
-                text="", 
+                text="",
                 fg_color="transparent",
-                text_color=("black", "white") # Default text color
+                text_color=("black", "white"),  # Default text color
             )
 
         if self.last_search_image:
@@ -638,8 +761,12 @@ class ImageFinderApp(ctk.CTk):
             hover_color=HOVER_BLUE,
             text_color=("black", "white"),
         )
-        self.load_index_button.bind("<Enter>", lambda event, b=self.load_index_button: on_enter(b))
-        self.load_index_button.bind("<Leave>", lambda event, b=self.load_index_button: on_leave(b))
+        self.load_index_button.bind(
+            "<Enter>", lambda event, b=self.load_index_button: on_enter(b)
+        )
+        self.load_index_button.bind(
+            "<Leave>", lambda event, b=self.load_index_button: on_leave(b)
+        )
         self.load_index_button.pack(padx=20, pady=10)
 
         self.progress_bar = ctk.CTkProgressBar(
@@ -648,10 +775,9 @@ class ImageFinderApp(ctk.CTk):
         self.progress_bar.pack(padx=20, pady=10)
         self.progress_bar.set(0)
         self.status_label = ctk.CTkLabel(
-            self.sidebar_frame, text="", font=ctk.CTkFont(size=11)
+            self.sidebar_frame, text="", font=ctk.CTkFont(size=11), wraplength=210, width=210
         )
         self.status_label.pack(padx=20, pady=0)
-
         self.folder_info_label = ctk.CTkLabel(
             self.sidebar_frame, text="", font=ctk.CTkFont(size=10), text_color="gray"
         )
@@ -665,7 +791,7 @@ class ImageFinderApp(ctk.CTk):
             corner_radius=6,
             padx=10,
             pady=5,
-            cursor="hand2"  # Indicate clickable
+            cursor="hand2",  # Indicate clickable
         )
         self.folder_path_display.pack(padx=20, pady=(2, 5), anchor="w", fill="x")
         self.folder_path_display.bind("<Button-1>", self._open_search_folder)
@@ -722,14 +848,7 @@ class ImageFinderApp(ctk.CTk):
         self.url_entry.pack(padx=20, pady=5, fill="x")
         self.url_entry.insert(0, DEFAULT_URL)
 
-        self.theme_switch = ctk.CTkSwitch(
-            self.sidebar_frame,
-            text="",
-            command=self.toggle_theme,
-            progress_color=PRIMARY_BLUE,
-        )
-        self.theme_switch.pack(padx=20, pady=15)
-        self.theme_switch.select()
+        # Spacer to push elements up
         spacer = ctk.CTkLabel(self.sidebar_frame, text="")
         spacer.pack(expand=True, fill="both")
 
@@ -742,33 +861,62 @@ class ImageFinderApp(ctk.CTk):
             hover_color=HOVER_BLUE,
             text_color=("black", "white"),
         )
-        self.about_button.bind("<Enter>", lambda event, b=self.about_button: on_enter(b))
-        self.about_button.bind("<Leave>", lambda event, b=self.about_button: on_leave(b))
-        self.about_button.pack(side="bottom", padx=20, pady=(10, 20))
-        self.lang_menu = ctk.CTkOptionMenu(
-            self.sidebar_frame,
-            values=["en", "pt"],
-            height=STD_HEIGHT,
-            command=self.change_language,
-            fg_color=PRIMARY_BLUE,
-            button_color=PRIMARY_BLUE,
-            button_hover_color=HOVER_BLUE,
+        self.about_button.bind(
+            "<Enter>", lambda event, b=self.about_button: on_enter(b)
         )
-        self.lang_menu.pack(side="bottom", padx=20, pady=5)
-        self.font_size_menu = ctk.CTkOptionMenu(
-            self.sidebar_frame,
-            values=["12", "14", "16", "18", "20"],
-            height=STD_HEIGHT,
-            command=self.change_font_size,
-            fg_color=PRIMARY_BLUE,
-            button_color=PRIMARY_BLUE,
-            button_hover_color=HOVER_BLUE,
+        self.about_button.bind(
+            "<Leave>", lambda event, b=self.about_button: on_leave(b)
         )
-        self.font_size_menu.pack(side="bottom", padx=20, pady=5)
+        self.about_button.pack(side="bottom", padx=20, pady=(20, 20))
+
+
+
+
+
+        # Call helper method to create option menus
+        self._create_option_menus(self.current_font_size)
 
         self.scrollable_frame = ctk.CTkScrollableFrame(self)
         self.scrollable_frame.grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
         self.scrollable_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
+
+        # Bind keyboard events for scrolling
+        self.scrollable_frame.bind("<Prior>", self._on_scroll_page_up)
+        self.scrollable_frame.bind("<Next>", self._on_scroll_page_down)
+        self.scrollable_frame.bind("<Home>", self._on_scroll_home)
+        self.scrollable_frame.bind("<End>", self._on_scroll_end)
+        # Bind mouse wheel for consistency/explicit control if default isn't working
+        self.scrollable_frame.bind("<MouseWheel>", self._on_mouse_wheel) # Windows/macOS
+        self.scrollable_frame.bind("<Button-4>", self._on_mouse_wheel) # Linux scroll up
+        self.scrollable_frame.bind("<Button-5>", self._on_mouse_wheel) # Linux scroll down
+
+        # Explicitly manage focus for scrolling
+        self.scrollable_frame.bind("<Enter>", lambda event: self.scrollable_frame.focus_set())
+        self.scrollable_frame.bind("<Leave>", lambda event: self.focus_set())
+
+    def _on_scroll_page_up(self, event):
+        self.scrollable_frame._parent_canvas.yview_scroll(-1, "pages")
+
+    def _on_scroll_page_down(self, event):
+        self.scrollable_frame._parent_canvas.yview_scroll(1, "pages")
+
+    def _on_scroll_home(self, event):
+        self.scrollable_frame._parent_canvas.yview_moveto(0)
+
+    def _on_scroll_end(self, event):
+        self.scrollable_frame._parent_canvas.yview_moveto(1)
+
+    def _on_mouse_wheel(self, event):
+        # Determine scroll direction and amount based on OS/event type
+        if sys.platform == "darwin": # macOS
+            self.scrollable_frame._parent_canvas.yview_scroll(-int(event.delta/abs(event.delta)), "units")
+        elif sys.platform == "win32": # Windows
+            self.scrollable_frame._parent_canvas.yview_scroll(-int(event.delta/120), "units")
+        else: # Linux
+            if event.num == 4: # Scroll up
+                self.scrollable_frame._parent_canvas.yview_scroll(-1, "units")
+            elif event.num == 5: # Scroll down
+                self.scrollable_frame._parent_canvas.yview_scroll(1, "units")
 
     def repeat_last_search(self):
         if self.last_search_image and os.path.exists(self.last_search_image):
@@ -859,8 +1007,16 @@ class ImageFinderApp(ctk.CTk):
 
     def start_search_thread(self):
         if not self.db_path:
-            self.show_load_index_window()
+            # If no search folder is available, display an informative message
+            self.show_custom_info("search_folder_missing_title", "search_folder_missing_msg")
             return
+        
+        # If a search folder is available, proceed to open the file explorer for image selection
+        # The _pending_search_after_index_selection flag (and its usage in set_active_db) is
+        # kept to allow for re-triggering this method if an index was just selected, but
+        # it doesn't control the initial flow here.
+        if hasattr(self, '_pending_search_after_index_selection'): # Only reset if it exists
+            self._pending_search_after_index_selection = False 
         target_path = filedialog.askopenfilename()
         if not target_path:
             return
@@ -929,9 +1085,10 @@ class ImageFinderApp(ctk.CTk):
         widgets = self.scrollable_frame.winfo_children()
         for i, widget in enumerate(reversed(widgets)):
             self.after(i * 30, widget.destroy)
-        
+
         # Schedule the UI update after the last widget has been told to destroy
         self.after(len(widgets) * 30, self.update_ui_text)
+
 
     def display_matches(self, matches):
         self.thumbnails = []
@@ -944,7 +1101,12 @@ class ImageFinderApp(ctk.CTk):
             self.ctk_globe = self.ctk_folder = None
 
         for i, (dist, path) in enumerate(matches):
-            self.after(i * 50, self._create_match_card, i, dist, path)
+            # Pass necessary data to the worker thread
+            threading.Thread(
+                target=self._process_and_create_card_thread,
+                args=(i, dist, path),
+                daemon=True
+            ).start()
 
     def _load_icons(self, globe_p, folder_p):
         globe_img = Image.open(globe_p).resize((20, 20))
@@ -957,20 +1119,51 @@ class ImageFinderApp(ctk.CTk):
         )
         return ctk_globe, ctk_folder
 
-    def _create_match_card(self, i, dist, path):
-        card = ctk.CTkFrame(self.scrollable_frame)
-        card.grid(row=i // 4, column=i % 4, padx=10, pady=10, sticky="nsew")
+    def _process_and_create_card_thread(self, i, dist, path):
+        """Worker thread to process image and schedule card creation on main thread."""
         try:
             raw_img = Image.open(path)
-            raw_img.thumbnail((240, 240))
+            raw_img.thumbnail((120, 120))  # Scale to fit within 120x120
             ctk_img = ctk.CTkImage(
-                light_image=raw_img, dark_image=raw_img, size=(120, 120)
+                light_image=raw_img,
+                dark_image=raw_img,
+                size=raw_img.size,  # Use actual size after thumbnail
             )
-            self.thumbnails.append(ctk_img)
-            ctk.CTkLabel(card, image=ctk_img, text="").pack(pady=5)
+            # Schedule the actual UI creation on the main thread
+            self.after(0, lambda: self.winfo_exists() and self._create_match_card_ui(i, dist, path, ctk_img))
         except Exception as e:
-            logging.exception(f"Error loading or displaying image: {path}")
-            ctk.CTkLabel(card, text="Error").pack(pady=40)
+            logging.exception(f"Error processing image in thread: {path}")
+            # Schedule an error card creation or message on the main thread
+            self.after(0, lambda: self.winfo_exists() and self._create_match_card_error(i, dist, path))
+
+
+    def _create_match_card_error(self, i, dist, path):
+        """Creates an error match card UI element on the main thread."""
+        card = ctk.CTkFrame(self.scrollable_frame)
+        card.grid(row=i // 4, column=i % 4, padx=10, pady=10, sticky="nsew")
+        ctk.CTkLabel(card, text="Error loading image").pack(pady=40)
+        ctk.CTkLabel(
+            card,
+            text=os.path.basename(path),
+            font=("Arial", self.current_font_size, "bold"),
+            wraplength=120,
+        ).pack(pady=0)
+        ctk.CTkLabel(
+            card,
+            text=f"Dist: {int(dist)}",
+            font=("Arial", self.current_font_size - 2),
+            text_color=("gray30", "gray70"),
+        ).pack(pady=(0, 5))
+        # No buttons for error cards, or add if desired
+
+        # Bind scroll events for all widgets in this card to the main scrollable frame
+        self.bind_tree(card, lambda e: self._handle_mousewheel_event(e, self.scrollable_frame))
+
+    def _create_match_card_ui(self, i, dist, path, ctk_img):
+        card = ctk.CTkFrame(self.scrollable_frame)
+        card.grid(row=i // 4, column=i % 4, padx=10, pady=10, sticky="nsew")
+        self.thumbnails.append(ctk_img) # Keep reference
+        ctk.CTkLabel(card, image=ctk_img, text="").pack(pady=5)
         ctk.CTkLabel(
             card,
             text=os.path.basename(path),
@@ -1005,6 +1198,9 @@ class ImageFinderApp(ctk.CTk):
             hover_color=("gray80", "gray20"),
             command=lambda p=path: reveal_file_in_explorer(p),
         ).pack(side="left", padx=5)
+
+        # Bind scroll events for all widgets in this card to the main scrollable frame
+        self.bind_tree(card, lambda e: self._handle_mousewheel_event(e, self.scrollable_frame))
 
 
 if __name__ == "__main__":
