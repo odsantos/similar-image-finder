@@ -555,7 +555,7 @@ class ImageFinderApp(ctk.CTk):
         # Language Option Menu (Packed last, so visually at the very bottom)
         self.lang_menu = ctk.CTkOptionMenu(
             self.sidebar_frame,
-            values=["en", "pt"],
+            values=["en", "es", "pt"],
             height=STD_HEIGHT - 4, # Adjusted height
             command=self.change_language,
             fg_color=PRIMARY_BLUE,
