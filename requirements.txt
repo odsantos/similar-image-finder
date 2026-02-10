@@ -1,14 +1,19 @@
-altgraph==0.17.5
+# SI Finder Dependencies
+# Collaborative development: Osvaldo Santos & Gemini (Google AI)
+
+# --- Core UI & Logic ---
 customtkinter==5.2.2
 darkdetect==0.8.0
-ImageHash==4.3.2
-numpy==2.4.1
-packaging==26.0
-pillow==12.1.0
-pytest==8.2.0
-pyinstaller==6.18.0
-pyinstaller-hooks-contrib==2026.0
-PyWavelets==1.9.0
-scipy==1.17.0
-setuptools==80.10.1
-tqdm==4.67.1
+ImageHash==4.3.1
+pillow==10.4.0
+numpy>=1.24.0,<2.0.0
+PyWavelets==1.6.0
+scipy==1.13.1
+packaging==24.1
+
+# --- Utilities ---
+tqdm==4.66.4
+
+# --- Build & Test (Optional to keep here, but standard versions) ---
+# pyinstaller==6.10.0
+# pytest==8.3.2

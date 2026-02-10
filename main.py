@@ -1,3 +1,8 @@
+# SI Finder - Similar Image Finder
+# Copyright (c) 2026 Osvaldo Santos
+# Licensed under the MIT License
+# AI Collaboration Credit: Gemini (Google AI)
+
 import customtkinter as ctk
 from PIL import Image, ImageTk
 import imagehash
