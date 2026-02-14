@@ -1,4 +1,4 @@
-# SI Finder Dependencies
+# Similar Image Finder Dependencies
 # Collaborative development: Osvaldo Santos & Gemini (Google AI)
 
 # --- Core UI & Logic ---

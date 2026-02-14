@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SI Finder - Icon Generation Utility
+# Similar Image Finder - Icon Generation Utility
 # Developed through a collaboration between Osvaldo Santos and Gemini (Google AI)
 
 import os
