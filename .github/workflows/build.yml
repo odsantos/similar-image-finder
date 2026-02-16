@@ -60,9 +60,8 @@ jobs:
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
-          mkdir SI-Finder.app
-          cp dist/si_finder.exe SI-Finder.app/
-          Compress-Archive -Path SI-Finder.app -DestinationPath SI-Finder-Windows.zip
+          cp dist/si_finder.exe SI-Finder.exe
+          Compress-Archive -Path SI-Finder.exe -DestinationPath SI-Finder-Windows.zip
 
 
       - name: Build AppImage (Linux)
@@ -87,10 +86,8 @@ jobs:
           # Generate final AppImage
           ./appimagetool.AppImage AppDir SI-Finder.AppImage
           
-          # Wrap AppImage in SI-Finder.app folder and zip
-          mkdir SI-Finder.app
-          mv SI-Finder.AppImage SI-Finder.app/
-          zip -r SI-Finder-Linux.zip SI-Finder.app
+          # Zip AppImage directly
+          zip SI-Finder-Linux.zip SI-Finder.AppImage
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v1

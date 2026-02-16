@@ -18,7 +18,7 @@ import hashlib
 from tkinter import filedialog
 from i18n import translations
 
-VERSION = "v1.2.3"
+VERSION = "v1.2.5"
 DEFAULT_URL = "https://your-website.com/search?id="
 REPO_URL = "https://github.com/odsantos/similar-image-finder"
 PRIMARY_BLUE = "#1f538d"
