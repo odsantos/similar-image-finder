@@ -13,7 +13,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest]
 
     steps:
       - name: Check out code
@@ -48,12 +48,12 @@ jobs:
           pyinstaller \
             --name "si_finder" \
             --windowed \
-            ${{ matrix.os == 'macos-latest' && '--onedir' || '--onefile' }} \
+            --onefile \
             --add-data "assets${{ steps.set_separator.outputs.separator }}assets" \
             --add-data "${CTK_PATH}${{ steps.set_separator.outputs.separator }}customtkinter" \
             --hidden-import=PIL.ImageTk \
             --hidden-import=PIL._tkinter_finder \
-            --icon "${{ matrix.os == 'windows-latest' && 'assets/images/icon.ico' || (matrix.os == 'macos-latest' && 'assets/images/icon.icns' || 'assets/images/icon-1024x1024.png') }}" \
+            --icon "${{ matrix.os == 'windows-latest' && 'assets/images/icon.ico' || 'assets/images/icon-1024x1024.png' }}" \
             main.py
 
       - name: Package Windows
@@ -64,12 +64,6 @@ jobs:
           cp dist/si_finder.exe SI-Finder.app/
           Compress-Archive -Path SI-Finder.app -DestinationPath SI-Finder-Windows.zip
 
-      - name: Package macOS
-        if: matrix.os == 'macos-latest'
-        run: |
-          # Move the native folder to the uniform name
-          mv dist/si_finder.app SI-Finder.app
-          zip -r SI-Finder-macOS.zip SI-Finder.app
 
       - name: Build AppImage (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -107,6 +101,5 @@ jobs:
           files: |
             SI-Finder-Linux.zip
             SI-Finder-Windows.zip
-            SI-Finder-macOS.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
