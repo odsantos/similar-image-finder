@@ -4,7 +4,7 @@ A lightweight, cross-platform desktop application designed to find visually simi
 
 ![Version](https://img.shields.io/badge/version-1.2.3-teal)
 ![License](https://img.shields.io/badge/license-MIT-blue)
-![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey)
+![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey)
 
 ## 🚀 Features
 
@@ -22,9 +22,9 @@ A lightweight, cross-platform desktop application designed to find visually simi
 
 For the best experience, download the pre-compiled official bundles. These require no technical setup—just extract and run.
 
-- **[Download for Windows, macOS, & Linux on Gumroad](https://osvaldosantos.gumroad.com/)**
+- **[Download for Windows & Linux on Gumroad](https://osvaldosantos.gumroad.com/)**
 
-> **Note on Assets:** When uncompressing the ZIP asset, you will find a direct folder for macOS and an `.exe` for Windows. Files are located in the root of the archive, not inside a `dist` folder.
+> **Note on Assets:** When uncompressing the ZIP asset, you will find an `.exe` for Windows. Files are located in the root of the archive, not inside a `dist` folder.
 
 *Purchasing a build helps support the continued development and maintenance of this project!*
 
