@@ -59,6 +59,12 @@ If you prefer to run the application using your own Python environment:
    - **Higher numbers (10+):** Best for finding looser variations.
 4. **Browse:** Results appear in the grid. Click the **Globe** icon for web links or the **Folder** icon to locate the file on your computer.
 
+### 📂 Where is my data?
+SI Finder is a "zero-install" application. While the executable is portable, your image indexes and search history are stored in standard system locations to ensure they aren't lost when you move or update the app:
+
+- **Windows:** `%APPDATA%\SI-Finder`
+- **Linux:** `~/.local/share/SI-Finder`
+
 ## 🛠️ Troubleshooting
 
 ### Windows: "Windows protected your PC"

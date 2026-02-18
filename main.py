@@ -18,7 +18,7 @@ import hashlib
 from tkinter import filedialog
 from i18n import translations
 
-VERSION = "v1.2.7"
+VERSION = "v1.2.8"
 DEFAULT_URL = "https://your-website.com/search?id="
 REPO_URL = "https://github.com/odsantos/similar-image-finder"
 PRIMARY_BLUE = "#1f538d"
@@ -142,19 +142,33 @@ class ImageFinderApp(ctk.CTk):
             if sys.platform == "win32":
                 icon_path = resource_path("assets/images/icon.ico")
                 if os.path.exists(icon_path):
+                    # Set immediately
                     window.iconbitmap(icon_path)
-                    # For popups, Windows sometimes needs a slight delay to apply the icon
+                    # For Toplevels, Windows often needs a retry after it's deiconified/mapped
                     if isinstance(window, ctk.CTkToplevel):
                         window.after(200, lambda: window.iconbitmap(icon_path))
+                        window.after(500, lambda: window.iconbitmap(icon_path))
             else:
                 icon_path = resource_path("assets/images/icon-1024x1024.png")
                 if os.path.exists(icon_path):
                     icon_img = Image.open(icon_path)
-                    self.tk_icon = ImageTk.PhotoImage(icon_img.resize((32, 32)))
-                    # Use 'True' for the first argument to set it for all Toplevels
-                    window.iconphoto(True, self.tk_icon)
+                    
+                    # Keep strong references to multiple sizes to help different window managers
+                    if not hasattr(self, '_icon_images'):
+                        self._icon_images = []
+                    
+                    icons = []
+                    for size in (16, 32, 64, 128, 256):
+                        tk_img = ImageTk.PhotoImage(icon_img.resize((size, size)))
+                        icons.append(tk_img)
+                        self._icon_images.append(tk_img)
+                    
+                    # Set for this specific window (False = this window only, but we call it for all)
+                    window.iconphoto(False, *icons)
+                    # Also set default for any standard tk dialogs
+                    window.iconphoto(True, icons[1]) # 32x32 as default
         except Exception as e:
-            print(f"Error loading icon for {window}: {e}")
+            print(f"Error loading icon: {e}")
 
     def get_app_dir(self):
         """
