@@ -2,7 +2,7 @@
 
 A lightweight, cross-platform desktop application designed to find visually similar images within a directory using Perceptual Hashing (pHash).
 
-![Version](https://img.shields.io/badge/version-1.2.3-teal)
+![Version](https://img.shields.io/badge/version-1.2.5-teal)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey)
 
@@ -24,7 +24,9 @@ For the best experience, download the pre-compiled official bundles. These requi
 
 - **[Download for Windows & Linux on Gumroad](https://osvaldosantos.gumroad.com/)**
 
-> **Note on Assets:** When uncompressing the ZIP asset, you will find an `.exe` for Windows. Files are located in the root of the archive, not inside a `dist` folder.
+> [!NOTE]
+> **Windows:** Run the `.exe` file directly.  
+> **Linux:** Run the `SI-Finder` binary. You may need to grant execution permissions first: `chmod +x SI-Finder`.
 
 *Purchasing a build helps support the continued development and maintenance of this project!*
 
@@ -56,6 +58,13 @@ If you prefer to run the application using your own Python environment:
    - **Lower numbers (0-5):** Best for finding exact duplicates.
    - **Higher numbers (10+):** Best for finding looser variations.
 4. **Browse:** Results appear in the grid. Click the **Globe** icon for web links or the **Folder** icon to locate the file on your computer.
+
+## 🛠️ Troubleshooting
+
+### Windows: "Windows protected your PC"
+Because SI Finder is an independent application, Windows SmartScreen may show a warning the first time you run it.
+1. Click **"More info"** in the warning dialog.
+2. Click **"Run anyway"**.
 
 ## 📄 License
  

@@ -18,7 +18,7 @@ import hashlib
 from tkinter import filedialog
 from i18n import translations
 
-VERSION = "v1.2.5"
+VERSION = "v1.2.6"
 DEFAULT_URL = "https://your-website.com/search?id="
 REPO_URL = "https://github.com/odsantos/similar-image-finder"
 PRIMARY_BLUE = "#1f538d"
@@ -131,17 +131,26 @@ class ImageFinderApp(ctk.CTk):
         self.current_info_title_key = ""
         self.current_info_msg_key = ""
 
-        try:
-            icon_p = resource_path("assets/images/icon-1024x1024.png")
-            if os.path.exists(icon_p):
-                self.icon_image = Image.open(icon_p)
-                self.tk_icon = ImageTk.PhotoImage(self.icon_image.resize((32, 32)))
-                self.iconphoto(True, self.tk_icon)
-        except:
-            pass
-
+        self.set_window_icon(self)
         self.setup_ui()
         self.update_ui_text()
+
+    def set_window_icon(self, window):
+        """Sets the window icon for both Windows and Linux/macOS."""
+        try:
+            if sys.platform == "win32":
+                icon_path = resource_path("assets/images/icon.ico")
+                if os.path.exists(icon_path):
+                    window.iconbitmap(icon_path)
+            else:
+                icon_path = resource_path("assets/images/icon-1024x1024.png")
+                if os.path.exists(icon_path):
+                    self.icon_image = Image.open(icon_path)
+                    # Use a smaller size for the actual window icon decoration
+                    self.tk_icon = ImageTk.PhotoImage(self.icon_image.resize((32, 32)))
+                    window.iconphoto(True, self.tk_icon)
+        except Exception as e:
+            print(f"Error loading icon for {window}: {e}")
 
     def get_app_dir(self):
         """
@@ -221,6 +230,10 @@ class ImageFinderApp(ctk.CTk):
         popup.after(100, lambda: popup.focus_force())
         self.active_popup = popup
         self.active_popup_type = popup_type
+        
+        # Ensure icon is set for the new top-level popup
+        self.set_window_icon(popup)
+        
         return popup
 
     def center_toplevel(self, toplevel, width, height):

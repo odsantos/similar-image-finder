@@ -6,6 +6,8 @@ on:
   push:
     tags:
       - 'v*'
+      - 'vTEST'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -64,30 +66,11 @@ jobs:
           Compress-Archive -Path SI-Finder.exe -DestinationPath SI-Finder-Windows.zip
 
 
-      - name: Build AppImage (Linux)
+      - name: Package Linux
         if: matrix.os == 'ubuntu-latest'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libfuse2
-          
-          wget -c "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool.AppImage
-          chmod +x appimagetool.AppImage
-          
-          # Build AppDir
-          mkdir -p AppDir/usr/bin
-          cp dist/si_finder AppDir/usr/bin/si-finder
-          
-          # Create desktop file
-          echo -e '[Desktop Entry]\nName=SI Finder\nExec=si-finder\nIcon=si-finder\nType=Application\nCategories=Graphics;' > AppDir/si-finder.desktop
-          cp assets/images/icon-1024x1024.png AppDir/si-finder.png
-          
-          ln -s usr/bin/si-finder AppDir/AppRun
-          
-          # Generate final AppImage
-          ./appimagetool.AppImage AppDir SI-Finder.AppImage
-          
-          # Zip AppImage directly
-          zip SI-Finder-Linux.zip SI-Finder.AppImage
+          cp dist/si_finder SI-Finder
+          zip SI-Finder-Linux.zip SI-Finder
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v1
