@@ -18,7 +18,7 @@ import hashlib
 from tkinter import filedialog
 from i18n import translations
 
-VERSION = "v1.2.6"
+VERSION = "v1.2.7"
 DEFAULT_URL = "https://your-website.com/search?id="
 REPO_URL = "https://github.com/odsantos/similar-image-finder"
 PRIMARY_BLUE = "#1f538d"
@@ -117,6 +117,7 @@ def open_directory_in_explorer(dir_path):
 class ImageFinderApp(ctk.CTk):
     def __init__(self):
         super().__init__()
+        ctk.set_appearance_mode("System")  # Detect system theme on startup
         self.lang = "en"
         self.db_path = None
         self.current_font_size = 12
@@ -142,12 +143,15 @@ class ImageFinderApp(ctk.CTk):
                 icon_path = resource_path("assets/images/icon.ico")
                 if os.path.exists(icon_path):
                     window.iconbitmap(icon_path)
+                    # For popups, Windows sometimes needs a slight delay to apply the icon
+                    if isinstance(window, ctk.CTkToplevel):
+                        window.after(200, lambda: window.iconbitmap(icon_path))
             else:
                 icon_path = resource_path("assets/images/icon-1024x1024.png")
                 if os.path.exists(icon_path):
-                    self.icon_image = Image.open(icon_path)
-                    # Use a smaller size for the actual window icon decoration
-                    self.tk_icon = ImageTk.PhotoImage(self.icon_image.resize((32, 32)))
+                    icon_img = Image.open(icon_path)
+                    self.tk_icon = ImageTk.PhotoImage(icon_img.resize((32, 32)))
+                    # Use 'True' for the first argument to set it for all Toplevels
                     window.iconphoto(True, self.tk_icon)
         except Exception as e:
             print(f"Error loading icon for {window}: {e}")
@@ -606,7 +610,12 @@ class ImageFinderApp(ctk.CTk):
             progress_color=PRIMARY_BLUE,
         )
         self.theme_switch.pack(side="bottom", padx=20, pady=(5, 5))
-        self.theme_switch.select()
+        
+        # Sync switch with current system/theme mode
+        if ctk.get_appearance_mode() == "Dark":
+            self.theme_switch.select()
+        else:
+            self.theme_switch.deselect()
 
     def on_repeat_hover(self, event):
         if self.last_search_image:
