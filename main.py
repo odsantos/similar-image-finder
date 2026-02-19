@@ -18,7 +18,7 @@ import hashlib
 from tkinter import filedialog
 from i18n import translations
 
-VERSION = "v1.3.3"
+VERSION = "v1.3.4"
 DEFAULT_URL = "https://your-website.com/search?id="
 REPO_URL = "https://github.com/odsantos/similar-image-finder"
 PRIMARY_BLUE = "#1f538d"
@@ -121,14 +121,10 @@ class ImageFinderApp(ctk.CTk):
         # FIX: Set WM_CLASS for Linux dock/taskbar association
         if sys.platform == "linux":
             try:
-                # Use a lower-level call to ensure the class is set early and correctly
-                self.tk.call('wm', 'class', self._w, 'si_finder')
-                self.wm_name("si_finder")
-                self.wm_instance("si_finder")
                 # Trigger self-installation if not in a persistent home
                 self.install_linux_to_system()
             except Exception as e:
-                print(f"Error setting Linux WM properties: {e}")
+                print(f"Error during Linux startup: {e}")
 
         ctk.set_appearance_mode("System")  # Detect system theme on startup
         self.lang = "en"
