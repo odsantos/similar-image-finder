@@ -18,7 +18,7 @@ import hashlib
 from tkinter import filedialog
 from i18n import translations
 
-VERSION = "v1.2.9"
+VERSION = "v1.3.0"
 DEFAULT_URL = "https://your-website.com/search?id="
 REPO_URL = "https://github.com/odsantos/similar-image-finder"
 PRIMARY_BLUE = "#1f538d"
@@ -117,8 +117,6 @@ def open_directory_in_explorer(dir_path):
 class ImageFinderApp(ctk.CTk):
     def __init__(self):
         super().__init__()
-        if sys.platform != "win32":
-            self.wm_class("si_finder", "SI-Finder")
         ctk.set_appearance_mode("System")  # Detect system theme on startup
         self.lang = "en"
         self.db_path = None
