@@ -62,7 +62,6 @@ jobs:
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
-          cp dist/si_finder.exe SI-Finder.exe
           Compress-Archive -Path SI-Finder.exe -DestinationPath SI-Finder-Windows.zip
 
 
@@ -70,7 +69,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           cp dist/si_finder SI-Finder
-          zip SI-Finder-Linux.zip SI-Finder
+          zip SI-Finder-Ubuntu.zip SI-Finder
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v1
@@ -79,7 +78,7 @@ jobs:
           draft: true
           prerelease: false
           files: |
-            SI-Finder-Linux.zip
+            SI-Finder-Ubuntu.zip
             SI-Finder-Windows.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -28,6 +28,9 @@ For the best experience, download the pre-compiled official bundles. These requi
 > **Windows:** Run the `.exe` file directly.  
 > **Linux:** Run the `SI-Finder` binary. You may need to grant execution permissions first: `chmod +x SI-Finder`.
 
+> [!TIP]
+> **Standalone Execution**: SI Finder is a single-file application. After extraction, you can move the executable file (e.g., to your Desktop) for easy access. It does not need to stay inside a folder.
+
 *Purchasing a build helps support the continued development and maintenance of this project!*
 
 ### 🛠️ Build from Source (Advanced)
