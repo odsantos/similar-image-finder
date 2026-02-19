@@ -62,15 +62,20 @@ jobs:
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
-          cp dist/si_finder.exe SI-Finder.exe
+          # Move file out of dist and rename if needed
+          Move-Item -Path dist/si_finder.exe -Destination SI-Finder.exe
+          # ZIP it directly (no subfolders)
           Compress-Archive -Path SI-Finder.exe -DestinationPath SI-Finder-Windows.zip
-
 
       - name: Package Linux
         if: matrix.os == 'ubuntu-latest'
         run: |
-          cp dist/si_finder SI-Finder
-          zip SI-Finder-Ubuntu.zip SI-Finder
+          # Move binary to root
+          mv dist/si_finder SI-Finder
+          # Include icon in the root of the zip for user reference
+          cp assets/images/icon-1024x1024.png SI-Finder-Icon.png
+          # Zip files directly (junk-paths ensures no subfolders)
+          zip -j SI-Finder-Ubuntu.zip SI-Finder SI-Finder-Icon.png
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v1

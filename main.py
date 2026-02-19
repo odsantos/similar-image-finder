@@ -18,7 +18,7 @@ import hashlib
 from tkinter import filedialog
 from i18n import translations
 
-VERSION = "v1.3.0"
+VERSION = "v1.3.1"
 DEFAULT_URL = "https://your-website.com/search?id="
 REPO_URL = "https://github.com/odsantos/similar-image-finder"
 PRIMARY_BLUE = "#1f538d"
@@ -117,6 +117,16 @@ def open_directory_in_explorer(dir_path):
 class ImageFinderApp(ctk.CTk):
     def __init__(self):
         super().__init__()
+        
+        # FIX: Set WM_CLASS for Linux dock/taskbar association
+        if sys.platform == "linux":
+            try:
+                self.wm_name("si_finder")
+                self.wm_instance("si_finder")
+                self.create_linux_shortcut()
+            except Exception as e:
+                print(f"Error setting Linux WM properties: {e}")
+
         ctk.set_appearance_mode("System")  # Detect system theme on startup
         self.lang = "en"
         self.db_path = None
@@ -151,24 +161,54 @@ class ImageFinderApp(ctk.CTk):
             else:
                 icon_path = resource_path("assets/images/icon-1024x1024.png")
                 if os.path.exists(icon_path):
-                    icon_img = Image.open(icon_path)
+                    img = Image.open(icon_path)
                     
-                    # Keep strong references to multiple sizes to help different window managers
-                    if not hasattr(self, '_icon_images'):
-                        self._icon_images = []
+                    # Prevent Garbage Collection
+                    if not hasattr(self, '_icon_storage'):
+                        self._icon_storage = []
                     
-                    icons = []
+                    # Create multiple sizes (standard for GNOME/Wayland)
+                    photo_icons = []
                     for size in (16, 32, 64, 128, 256):
-                        tk_img = ImageTk.PhotoImage(icon_img.resize((size, size)))
-                        icons.append(tk_img)
-                        self._icon_images.append(tk_img)
+                        resized = img.resize((size, size), Image.Resampling.LANCZOS)
+                        ph = ImageTk.PhotoImage(resized)
+                        photo_icons.append(ph)
+                        self._icon_storage.append(ph)
                     
-                    # Set for this specific window (False = this window only, but we call it for all)
-                    window.iconphoto(False, *icons)
-                    # Also set default for any standard tk dialogs
-                    window.iconphoto(True, icons[1]) # 32x32 as default
+                    # 'True' applies this icon to all future popup dialogs automatically
+                    window.iconphoto(True, *photo_icons)
         except Exception as e:
             print(f"Error loading icon: {e}")
+
+    def create_linux_shortcut(self):
+        """Creates a .desktop file so the icon appears in the Ubuntu App Menu/Dock."""
+        if sys.platform != "linux":
+            return
+            
+        desktop_dir = os.path.expanduser("~/.local/share/applications")
+        os.makedirs(desktop_dir, exist_ok=True)
+        shortcut_path = os.path.join(desktop_dir, "si_finder.desktop")
+        
+        # Determine paths
+        exe_path = os.path.abspath(sys.argv[0])
+        icon_path = resource_path("assets/images/icon-1024x1024.png")
+        
+        desktop_content = f"""[Desktop Entry]
+Name=SI Finder
+Exec="{exe_path}"
+Icon={icon_path}
+Type=Application
+Categories=Graphics;Utility;
+Terminal=false
+StartupWMClass=si_finder
+Comment=Similar Image Finder
+"""
+        try:
+            with open(shortcut_path, "w") as f:
+                f.write(desktop_content)
+            os.chmod(shortcut_path, 0o755)
+        except Exception as e:
+            print(f"Could not create Linux shortcut: {e}")
 
     def get_app_dir(self):
         """
