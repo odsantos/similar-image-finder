@@ -18,7 +18,7 @@ import hashlib
 from tkinter import filedialog
 from i18n import translations
 
-VERSION = "v1.3.1"
+VERSION = "v1.3.2"
 DEFAULT_URL = "https://your-website.com/search?id="
 REPO_URL = "https://github.com/odsantos/similar-image-finder"
 PRIMARY_BLUE = "#1f538d"
@@ -121,6 +121,8 @@ class ImageFinderApp(ctk.CTk):
         # FIX: Set WM_CLASS for Linux dock/taskbar association
         if sys.platform == "linux":
             try:
+                # Use a lower-level call to ensure the class is set early and correctly
+                self.tk.call('wm', 'class', self._w, 'si_finder')
                 self.wm_name("si_finder")
                 self.wm_instance("si_finder")
                 self.create_linux_shortcut()
@@ -185,18 +187,32 @@ class ImageFinderApp(ctk.CTk):
         if sys.platform != "linux":
             return
             
+        # 1. Ensure the persistent data directory exists
+        app_dir = self.get_app_dir()
+        persistent_icon_path = os.path.join(app_dir, "icon.png")
+        
+        # 2. Copy the icon from the bundle to the persistent location
+        # This ensures the shortcut always has a valid icon even after extraction cleanup
+        try:
+            bundled_icon = resource_path("assets/images/icon-1024x1024.png")
+            if os.path.exists(bundled_icon) and not os.path.exists(persistent_icon_path):
+                import shutil
+                shutil.copy2(bundled_icon, persistent_icon_path)
+        except Exception as e:
+            print(f"Could not copy icon to persistent storage: {e}")
+
+        # 3. Create the .desktop file
         desktop_dir = os.path.expanduser("~/.local/share/applications")
         os.makedirs(desktop_dir, exist_ok=True)
         shortcut_path = os.path.join(desktop_dir, "si_finder.desktop")
         
-        # Determine paths
+        # Determine current executable path
         exe_path = os.path.abspath(sys.argv[0])
-        icon_path = resource_path("assets/images/icon-1024x1024.png")
         
         desktop_content = f"""[Desktop Entry]
 Name=SI Finder
 Exec="{exe_path}"
-Icon={icon_path}
+Icon={persistent_icon_path}
 Type=Application
 Categories=Graphics;Utility;
 Terminal=false
