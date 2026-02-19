@@ -18,7 +18,7 @@ import hashlib
 from tkinter import filedialog
 from i18n import translations
 
-VERSION = "v1.3.2"
+VERSION = "v1.3.3"
 DEFAULT_URL = "https://your-website.com/search?id="
 REPO_URL = "https://github.com/odsantos/similar-image-finder"
 PRIMARY_BLUE = "#1f538d"
@@ -125,7 +125,8 @@ class ImageFinderApp(ctk.CTk):
                 self.tk.call('wm', 'class', self._w, 'si_finder')
                 self.wm_name("si_finder")
                 self.wm_instance("si_finder")
-                self.create_linux_shortcut()
+                # Trigger self-installation if not in a persistent home
+                self.install_linux_to_system()
             except Exception as e:
                 print(f"Error setting Linux WM properties: {e}")
 
@@ -182,49 +183,79 @@ class ImageFinderApp(ctk.CTk):
         except Exception as e:
             print(f"Error loading icon: {e}")
 
-    def create_linux_shortcut(self):
-        """Creates a .desktop file so the icon appears in the Ubuntu App Menu/Dock."""
+    def install_linux_to_system(self):
+        """Automatically moves the app to a persistent location on first run."""
         if sys.platform != "linux":
             return
-            
-        # 1. Ensure the persistent data directory exists
-        app_dir = self.get_app_dir()
-        persistent_icon_path = os.path.join(app_dir, "icon.png")
-        
-        # 2. Copy the icon from the bundle to the persistent location
-        # This ensures the shortcut always has a valid icon even after extraction cleanup
-        try:
-            bundled_icon = resource_path("assets/images/icon-1024x1024.png")
-            if os.path.exists(bundled_icon) and not os.path.exists(persistent_icon_path):
-                import shutil
-                shutil.copy2(bundled_icon, persistent_icon_path)
-        except Exception as e:
-            print(f"Could not copy icon to persistent storage: {e}")
 
-        # 3. Create the .desktop file
-        desktop_dir = os.path.expanduser("~/.local/share/applications")
-        os.makedirs(desktop_dir, exist_ok=True)
-        shortcut_path = os.path.join(desktop_dir, "si_finder.desktop")
+        persistent_dir = self.get_app_dir() # ~/.local/share/SI-Finder
+        shortcut_path = os.path.expanduser("~/.local/share/applications/si_finder.desktop")
         
         # Determine current executable path
-        exe_path = os.path.abspath(sys.argv[0])
-        
+        current_exe = os.path.abspath(sys.argv[0])
+        persistent_exe = os.path.join(persistent_dir, "SI-Finder")
+        persistent_icon = os.path.join(persistent_dir, "icon.png")
+
+        # If we are already running from the persistent home, just ensure shortcut exists
+        if current_exe == persistent_exe:
+            if not os.path.exists(shortcut_path):
+                self._create_desktop_file(persistent_exe, persistent_icon, shortcut_path)
+            return
+
+        # Perform migration
+        try:
+            import shutil
+            os.makedirs(persistent_dir, exist_ok=True)
+            
+            # 1. Copy binary
+            if not os.path.exists(persistent_exe) or os.path.getmtime(current_exe) > os.path.getmtime(persistent_exe):
+                shutil.copy2(current_exe, persistent_exe)
+                os.chmod(persistent_exe, 0o755)
+
+            # 2. Copy icon (look for bundled resource or local dot-prefixed companion)
+            bundled_icon = resource_path("assets/images/icon-1024x1024.png")
+            local_hidden_icon = os.path.join(os.path.dirname(current_exe), ".SI-Finder-Icon.png")
+            
+            if os.path.exists(bundled_icon):
+                shutil.copy2(bundled_icon, persistent_icon)
+            elif os.path.exists(local_hidden_icon):
+                shutil.copy2(local_hidden_icon, persistent_icon)
+
+            # 3. Create Desktop Shortcut
+            self._create_desktop_file(persistent_exe, persistent_icon, shortcut_path)
+            
+            # 4. Notify User
+            self.after(1000, lambda: self._show_install_notification())
+            
+        except Exception as e:
+            print(f"Linux self-installation failed: {e}")
+
+    def _create_desktop_file(self, exe_path, icon_path, shortcut_path):
+        """Helper to write the .desktop file."""
         desktop_content = f"""[Desktop Entry]
 Name=SI Finder
 Exec="{exe_path}"
-Icon={persistent_icon_path}
+Icon={icon_path}
 Type=Application
 Categories=Graphics;Utility;
 Terminal=false
 StartupWMClass=si_finder
 Comment=Similar Image Finder
 """
-        try:
-            with open(shortcut_path, "w") as f:
-                f.write(desktop_content)
-            os.chmod(shortcut_path, 0o755)
-        except Exception as e:
-            print(f"Could not create Linux shortcut: {e}")
+        with open(shortcut_path, "w") as f:
+            f.write(desktop_content)
+        os.chmod(shortcut_path, 0o755)
+        print(f"System shortcut created at: {shortcut_path}")
+
+    def _show_install_notification(self):
+        """Shows a one-time message after successful migration."""
+        from tkinter import messagebox
+        messagebox.showinfo(
+            "SI Finder Installed",
+            "SI Finder is now in your Applications menu! 🚀\n\n"
+            "The application has been moved to a persistent location.\n"
+            "You can now safely delete this extraction folder."
+        )
 
     def get_app_dir(self):
         """

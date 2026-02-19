@@ -72,10 +72,12 @@ jobs:
         run: |
           # Move binary to root
           mv dist/si_finder SI-Finder
-          # Include icon in the root of the zip for user reference
-          cp assets/images/icon-1024x1024.png SI-Finder-Icon.png
+          # Include icon as a hidden file for the self-installation logic
+          cp assets/images/icon-1024x1024.png .SI-Finder-Icon.png
+          # Include simplified README
+          cp LINUX_README.md README.md
           # Zip files directly (junk-paths ensures no subfolders)
-          zip -j SI-Finder-Ubuntu.zip SI-Finder SI-Finder-Icon.png
+          zip -j SI-Finder-Ubuntu.zip SI-Finder .SI-Finder-Icon.png README.md
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v1
