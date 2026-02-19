@@ -11,9 +11,12 @@ Welcome to SI Finder! This is a "Setup-once" portable application.
    - Create a shortcut in your **Applications Menu**.
 4. **Clean Up**: Once you see the "Installation Successful" message, you can safely **delete this extraction folder**.
 
-## Launching Later
+## How to Uninstall
 
-After completion, you don't need this folder anymore. Simply search for **"SI Finder"** in your Activities/Show Applications menu to launch it.
+If you wish to remove the application and its shortcut:
+
+1. **Remove Shortcut**: Run `rm ~/.local/share/applications/si_finder.desktop` in your terminal.
+2. **Remove App Data**: Run `rm -rf ~/.local/share/SI-Finder/` to delete the binary and settings.
 
 ---
 *Portable & Private - No Root/Sudo required.*

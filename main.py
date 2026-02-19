@@ -18,7 +18,7 @@ import hashlib
 from tkinter import filedialog
 from i18n import translations
 
-VERSION = "v1.3.4"
+VERSION = "v1.3.5"
 DEFAULT_URL = "https://your-website.com/search?id="
 REPO_URL = "https://github.com/odsantos/similar-image-finder"
 PRIMARY_BLUE = "#1f538d"
@@ -122,7 +122,10 @@ class ImageFinderApp(ctk.CTk):
         if sys.platform == "linux":
             try:
                 # Trigger self-installation if not in a persistent home
-                self.install_linux_to_system()
+                if self.install_linux_to_system():
+                    # If installation happened, we should stop here
+                    # as the app has been relaunched from the new path
+                    sys.exit(0)
             except Exception as e:
                 print(f"Error during Linux startup: {e}")
 
@@ -180,9 +183,11 @@ class ImageFinderApp(ctk.CTk):
             print(f"Error loading icon: {e}")
 
     def install_linux_to_system(self):
-        """Automatically moves the app to a persistent location on first run."""
+        """Automatically moves the app to a persistent location on first run.
+        Returns True if a relaunch was triggered, False otherwise.
+        """
         if sys.platform != "linux":
-            return
+            return False
 
         persistent_dir = self.get_app_dir() # ~/.local/share/SI-Finder
         shortcut_path = os.path.expanduser("~/.local/share/applications/si_finder.desktop")
@@ -196,11 +201,12 @@ class ImageFinderApp(ctk.CTk):
         if current_exe == persistent_exe:
             if not os.path.exists(shortcut_path):
                 self._create_desktop_file(persistent_exe, persistent_icon, shortcut_path)
-            return
+            return False
 
         # Perform migration
         try:
             import shutil
+            import subprocess
             os.makedirs(persistent_dir, exist_ok=True)
             
             # 1. Copy binary
@@ -220,11 +226,19 @@ class ImageFinderApp(ctk.CTk):
             # 3. Create Desktop Shortcut
             self._create_desktop_file(persistent_exe, persistent_icon, shortcut_path)
             
-            # 4. Notify User
-            self.after(1000, lambda: self._show_install_notification())
+            # 4. Notify User and Relaunch
+            print(f"Installation successful. Relaunching from {persistent_exe}")
+            
+            # Show notification (this will block until closed)
+            self._show_install_notification()
+            
+            # Launch the persistent binary
+            subprocess.Popen([persistent_exe])
+            return True
             
         except Exception as e:
             print(f"Linux self-installation failed: {e}")
+            return False
 
     def _create_desktop_file(self, exe_path, icon_path, shortcut_path):
         """Helper to write the .desktop file."""
