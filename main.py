@@ -18,7 +18,7 @@ import hashlib
 from tkinter import filedialog
 from i18n import translations
 
-VERSION = "v1.3.5"
+VERSION = "v1.3.6"
 DEFAULT_URL = "https://your-website.com/search?id="
 REPO_URL = "https://github.com/odsantos/similar-image-finder"
 PRIMARY_BLUE = "#1f538d"
@@ -118,13 +118,18 @@ class ImageFinderApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         
+        self.withdraw() # Hide window during early setup/installation check
+        
         # FIX: Set WM_CLASS for Linux dock/taskbar association
         if sys.platform == "linux":
             try:
+                # WM_CLASS must match StartupWMClass in .desktop for taskbar icon
+                self.wm_name("si_finder")
+                self.wm_instance("si_finder")
+                
                 # Trigger self-installation if not in a persistent home
                 if self.install_linux_to_system():
-                    # If installation happened, we should stop here
-                    # as the app has been relaunched from the new path
+                    # If installation happened and triggered a relaunch, exit this process
                     sys.exit(0)
             except Exception as e:
                 print(f"Error during Linux startup: {e}")
@@ -147,6 +152,10 @@ class ImageFinderApp(ctk.CTk):
         self.set_window_icon(self)
         self.setup_ui()
         self.update_ui_text()
+        
+        # Finally show the window if we are at the correct location
+        # If we were installing, sys.exit(0) would have happened before this
+        self.after(100, self.deiconify)
 
     def set_window_icon(self, window):
         """Sets the window icon for both Windows and Linux/macOS."""
@@ -213,6 +222,11 @@ class ImageFinderApp(ctk.CTk):
             if not os.path.exists(persistent_exe) or os.path.getmtime(current_exe) > os.path.getmtime(persistent_exe):
                 shutil.copy2(current_exe, persistent_exe)
                 os.chmod(persistent_exe, 0o755)
+                # Set metadata icon for file manager (Nautilus)
+                try:
+                    subprocess.run(["gio", "set", "-t", "string", persistent_exe, "metadata::custom-icon", f"file://{persistent_icon}"], check=False)
+                except:
+                    pass
 
             # 2. Copy icon (look for bundled resource or local dot-prefixed companion)
             bundled_icon = resource_path("assets/images/icon-1024x1024.png")
