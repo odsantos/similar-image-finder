@@ -18,7 +18,7 @@ import hashlib
 from tkinter import filedialog
 from i18n import translations
 
-VERSION = "v1.3.6"
+VERSION = "v1.3.7"
 DEFAULT_URL = "https://your-website.com/search?id="
 REPO_URL = "https://github.com/odsantos/similar-image-finder"
 PRIMARY_BLUE = "#1f538d"
@@ -116,17 +116,15 @@ def open_directory_in_explorer(dir_path):
 
 class ImageFinderApp(ctk.CTk):
     def __init__(self):
-        super().__init__()
+        # className must match the StartupWMClass in your .desktop file for Linux icons
+        # This sets the correct WM_CLASS for the window manager
+        super().__init__(className="si_finder")
         
         self.withdraw() # Hide window during early setup/installation check
         
         # FIX: Set WM_CLASS for Linux dock/taskbar association
         if sys.platform == "linux":
             try:
-                # WM_CLASS must match StartupWMClass in .desktop for taskbar icon
-                self.wm_name("si_finder")
-                self.wm_instance("si_finder")
-                
                 # Trigger self-installation if not in a persistent home
                 if self.install_linux_to_system():
                     # If installation happened and triggered a relaunch, exit this process
@@ -158,101 +156,58 @@ class ImageFinderApp(ctk.CTk):
         self.after(100, self.deiconify)
 
     def set_window_icon(self, window):
-        """Sets the window icon for both Windows and Linux/macOS."""
+        """Standardized icon loading for Wayland/X11 and Windows."""
         try:
             if sys.platform == "win32":
                 icon_path = resource_path("assets/images/icon.ico")
                 if os.path.exists(icon_path):
-                    # Set immediately
                     window.iconbitmap(icon_path)
-                    # For Toplevels, Windows often needs a retry after it's deiconified/mapped
-                    if isinstance(window, ctk.CTkToplevel):
-                        window.after(200, lambda: window.iconbitmap(icon_path))
-                        window.after(500, lambda: window.iconbitmap(icon_path))
             else:
+                # Linux/macOS: Load multiple sizes for better GNOME/Wayland support
                 icon_path = resource_path("assets/images/icon-1024x1024.png")
                 if os.path.exists(icon_path):
                     img = Image.open(icon_path)
-                    
-                    # Prevent Garbage Collection
-                    if not hasattr(self, '_icon_storage'):
-                        self._icon_storage = []
-                    
-                    # Create multiple sizes (standard for GNOME/Wayland)
                     photo_icons = []
                     for size in (16, 32, 64, 128, 256):
                         resized = img.resize((size, size), Image.Resampling.LANCZOS)
                         ph = ImageTk.PhotoImage(resized)
                         photo_icons.append(ph)
-                        self._icon_storage.append(ph)
+                        self._icon_storage.append(ph) # Keep reference alive
                     
-                    # 'True' applies this icon to all future popup dialogs automatically
                     window.iconphoto(True, *photo_icons)
         except Exception as e:
-            print(f"Error loading icon: {e}")
+            logging.error(f"Error loading icon: {e}")
 
     def install_linux_to_system(self):
-        """Automatically moves the app to a persistent location on first run.
-        Returns True if a relaunch was triggered, False otherwise.
-        """
-        if sys.platform != "linux":
-            return False
-
-        persistent_dir = self.get_app_dir() # ~/.local/share/SI-Finder
+        """Self-installation logic to fix GNOME/Wayland icon mapping."""
+        app_dir = os.path.expanduser("~/.local/share/SI-Finder")
         shortcut_path = os.path.expanduser("~/.local/share/applications/si_finder.desktop")
+        persistent_icon = os.path.join(app_dir, "icon.png")
         
-        # Determine current executable path
-        current_exe = os.path.abspath(sys.argv[0])
-        persistent_exe = os.path.join(persistent_dir, "SI-Finder")
-        persistent_icon = os.path.join(persistent_dir, "icon.png")
-
-        # If we are already running from the persistent home, just ensure shortcut exists
-        if current_exe == persistent_exe:
-            if not os.path.exists(shortcut_path):
-                self._create_desktop_file(persistent_exe, persistent_icon, shortcut_path)
-            return False
-
-        # Perform migration
-        try:
+        os.makedirs(app_dir, exist_ok=True)
+        
+        # Copy icon to persistent location
+        bundled_icon = resource_path("assets/images/icon-1024x1024.png")
+        if os.path.exists(bundled_icon):
             import shutil
-            import subprocess
-            os.makedirs(persistent_dir, exist_ok=True)
-            
-            # 1. Copy binary
-            if not os.path.exists(persistent_exe) or os.path.getmtime(current_exe) > os.path.getmtime(persistent_exe):
-                shutil.copy2(current_exe, persistent_exe)
-                os.chmod(persistent_exe, 0o755)
-                # Set metadata icon for file manager (Nautilus)
-                try:
-                    subprocess.run(["gio", "set", "-t", "string", persistent_exe, "metadata::custom-icon", f"file://{persistent_icon}"], check=False)
-                except:
-                    pass
+            shutil.copy2(bundled_icon, persistent_icon)
 
-            # 2. Copy icon (look for bundled resource or local dot-prefixed companion)
-            bundled_icon = resource_path("assets/images/icon-1024x1024.png")
-            local_hidden_icon = os.path.join(os.path.dirname(current_exe), ".SI-Finder-Icon.png")
-            
-            if os.path.exists(bundled_icon):
-                shutil.copy2(bundled_icon, persistent_icon)
-            elif os.path.exists(local_hidden_icon):
-                shutil.copy2(local_hidden_icon, persistent_icon)
-
-            # 3. Create Desktop Shortcut
-            self._create_desktop_file(persistent_exe, persistent_icon, shortcut_path)
-            
-            # 4. Notify User and Relaunch
-            print(f"Installation successful. Relaunching from {persistent_exe}")
-            
-            # Show notification (this will block until closed)
-            self._show_install_notification()
-            
-            # Launch the persistent binary
-            subprocess.Popen([persistent_exe])
-            return True
-            
+        # Create desktop entry with StartupWMClass for icon grouping
+        desktop_content = f"""[Desktop Entry]
+Name=SI Finder
+Exec="{sys.argv[0]}"
+Icon={persistent_icon}
+Type=Application
+Categories=Graphics;Utility;
+Terminal=false
+StartupWMClass=si_finder
+"""
+        try:
+            with open(shortcut_path, "w") as f:
+                f.write(desktop_content)
+            os.chmod(shortcut_path, 0o755)
         except Exception as e:
-            print(f"Linux self-installation failed: {e}")
-            return False
+            logging.error(f"Linux shortcut failed: {e}")
 
     def _create_desktop_file(self, exe_path, icon_path, shortcut_path):
         """Helper to write the .desktop file."""
@@ -769,6 +724,7 @@ Comment=Similar Image Finder
         self.theme_switch.configure(text=t["dark_mode"])
         self.about_button.configure(text=t["about_button"])
 
+        # Determine the status text based on state
         if self.status_state == "complete":
             status_text = t["status_complete"]
         elif self.status_state == "searching":
@@ -780,10 +736,11 @@ Comment=Similar Image Finder
         else:
             status_text = ""
 
+        # Dynamic Styling for "Searching..."
         if self.status_state == "searching":
             self.status_label.configure(
                 text=status_text,
-                text_color=("black", "white"),
+                text_color=("black", "white"), # Blue in light mode, Cyan in dark
                 fg_color=("#ffcb76", "#997a00")  # Amber/Gold (between yellow and orange)
             )
         else:
