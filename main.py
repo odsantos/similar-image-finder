@@ -116,44 +116,31 @@ def open_directory_in_explorer(dir_path):
 
 class ImageFinderApp(ctk.CTk):
     def __init__(self):
-        # className must match the StartupWMClass in your .desktop file for Linux icons
-        # This sets the correct WM_CLASS for the window manager
+        # className is vital for Linux taskbar/window grouping
+        # It sets the correct WM_CLASS for the window manager, and it must match the Startup WM_Class in the .desktop file for Linux icons
         super().__init__(className="si_finder")
         
         self.withdraw() # Hide window during early setup/installation check
         
-        # FIX: Set WM_CLASS for Linux dock/taskbar association
-        if sys.platform == "linux":
-            try:
-                # Trigger self-installation if not in a persistent home
-                if self.install_linux_to_system():
-                    # If installation happened and triggered a relaunch, exit this process
-                    sys.exit(0)
-            except Exception as e:
-                print(f"Error during Linux startup: {e}")
-
-        ctk.set_appearance_mode("System")  # Detect system theme on startup
         self.lang = "en"
-        self.db_path = None
-        self.current_font_size = 12
-        self.thumbnails = []
         self.status_state = None
-        self.active_popup = None
-        self.active_popup_type = None
-        self.last_search_image = None
-        self.previous_status_text = ""
-
-        # Keys for dynamic translation of help dialogs
-        self.current_info_title_key = ""
-        self.current_info_msg_key = ""
-
+        self._icon_storage = [] # Essential: prevents Linux from clearing icons from memory
+        
+        # 1. Configuration/Installation Flow (Linux Only)
+        setup_ready = True
+        if sys.platform == "linux":
+            setup_ready = self.run_linux_setup_flow()
+        
+        # 2. Setup Icons for all future windows
         self.set_window_icon(self)
+        
+        # 3. Build UI logic
         self.setup_ui()
         self.update_ui_text()
         
-        # Finally show the window if we are at the correct location
-        # If we were installing, sys.exit(0) would have happened before this
-        self.after(100, self.deiconify)
+        # 4. Only show the main UI if setup was already done or user clicked OK
+        if setup_ready:
+            self.after(200, self.deiconify)
 
     def set_window_icon(self, window):
         """Standardized icon loading for Wayland/X11 and Windows."""
@@ -165,19 +152,126 @@ class ImageFinderApp(ctk.CTk):
             else:
                 # Linux/macOS: Load multiple sizes for better GNOME/Wayland support
                 icon_path = resource_path("assets/images/icon-1024x1024.png")
+
+                # Fallback for when running from the uncompressed folder during first launch
+                if not os.path.exists(icon_path):
+                    icon_path = resource_path(".SI-Finder-Icon.png")
+             
                 if os.path.exists(icon_path):
                     img = Image.open(icon_path)
                     photo_icons = []
+                    # 16-128 are the standard sizes for window title bars and task switchers ('256' is for the dock/taskbar)
                     for size in (16, 32, 64, 128, 256):
                         resized = img.resize((size, size), Image.Resampling.LANCZOS)
                         ph = ImageTk.PhotoImage(resized)
                         photo_icons.append(ph)
-                        self._icon_storage.append(ph) # Keep reference alive
+                        self._icon_storage.append(ph) # Keep references alive
                     
+                    # True makes this the default icon for ALL windows (Main, Toplevels, Dialogs)
                     window.iconphoto(True, *photo_icons)
         except Exception as e:
             logging.error(f"Error loading icon: {e}")
 
+    def run_linux_setup_flow(self) -> bool:
+        """Handles first-launch configuration. Returns True if UI should open immediately."""
+        app_dir = os.path.expanduser("~/.local/share/SI-Finder")
+        shortcut_path = os.path.expanduser("~/.local/share/applications/si_finder.desktop")
+        
+        # If shortcut exists, it's not the first launch
+        if os.path.exists(shortcut_path):
+            return True
+
+        # STAGE 1: 'Configuring...' Dialog (No buttons)
+        conf_dialog = ctk.CTkToplevel(self)
+        conf_dialog.title("SI Finder")
+        conf_dialog.geometry("400x150")
+        conf_dialog.resizable(False, False)
+        self.set_window_icon(conf_dialog)
+        
+        ctk.CTkLabel(
+            conf_dialog, 
+            text="Configuring SI Finder...", 
+            font=("Arial", 16, "bold")
+        ).pack(pady=(30, 10))
+        
+        ctk.CTkLabel(
+            conf_dialog, 
+            text="Please wait a moment while we set up your system.", 
+            font=("Arial", 12)
+        ).pack()
+        
+        conf_dialog.grab_set() # Prevent clicking main window
+        self.update() # Force drawing of the dialog
+
+        # Perform logic
+        try:
+            os.makedirs(app_dir, exist_ok=True)
+            persistent_icon = os.path.join(app_dir, "icon.png")
+            
+            # Copy binary and icon to ~/.local/share/
+            bundled_icon = resource_path(".SI-Finder-Icon.png")
+            if os.path.exists(bundled_icon):
+                import shutil
+                shutil.copy2(bundled_icon, persistent_icon)
+
+            # Create the .desktop file
+            desktop_content = f"""[Desktop Entry]
+Name=SI Finder
+Exec="{sys.argv[0]}"
+Icon={persistent_icon}
+Type=Application
+Categories=Graphics;Utility;
+Terminal=false
+StartupWMClass=si_finder
+Comment=Similar Image Finder
+"""
+            with open(shortcut_path, "w") as f:
+                f.write(desktop_content)
+            os.chmod(shortcut_path, 0o755)
+        except Exception as e:
+            logging.error(f"Setup error: {e}")
+        
+        # Close 'Configuring' dialog
+        conf_dialog.destroy()
+
+        # STAGE 2: 'Success' Dialog (With OK button)
+        success_dialog = ctk.CTkToplevel(self)
+        success_dialog.title("Configuration Complete")
+        success_dialog.geometry("500x320")
+        success_dialog.resizable(False, False)
+        self.set_window_icon(success_dialog)
+        
+        msg = (
+            "SI Finder has been successfully configured!\n\n"
+            f"• Executable registered at: {sys.argv[0]}\n"
+            "• Application shortcut added to your Applications Menu.\n"
+            "• You can now move this executable anywhere else.\n"
+            "• You may safely delete this uncompressed folder.\n\n"
+            "Click OK to start the application."
+        )
+        
+        ctk.CTkLabel(
+            success_dialog, 
+            text=msg, 
+            justify="left", 
+            font=("Arial", 13), 
+            wraplength=450
+        ).pack(pady=30, padx=20)
+
+        # Setup variable to wait for button click
+        wait_var = ctk.BooleanVar(value=False)
+
+        def on_ok():
+            wait_var.set(True)
+            success_dialog.destroy()
+
+        ctk.CTkButton(success_dialog, text="OK", command=on_ok, width=120).pack(pady=(0, 20))
+        
+        success_dialog.grab_set()
+        self.wait_variable(wait_var) # This blocks __init__ from continuing
+        
+        return True
+        
     def install_linux_to_system(self):
         """Self-installation logic to fix GNOME/Wayland icon mapping."""
         app_dir = os.path.expanduser("~/.local/share/SI-Finder")
