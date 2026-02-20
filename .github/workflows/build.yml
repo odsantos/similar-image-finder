@@ -6,7 +6,6 @@ on:
   push:
     tags:
       - 'v*'
-      - 'vTEST'
   workflow_dispatch:
 
 jobs:
@@ -26,60 +25,46 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install customtkinter pillow imagehash scipy PyWavelets pyinstaller
-
-      - name: Set PyInstaller data separator
-        id: set_separator
-        shell: bash
-        run: |
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            echo "separator=;" >> $GITHUB_OUTPUT
-          else
-            echo "separator=:" >> $GITHUB_OUTPUT
-          fi
 
       - name: Build with PyInstaller
         shell: bash
         run: |
           # Locate CustomTkinter for bundling
           CTK_PATH=$(python -c "import customtkinter; import os; print(os.path.dirname(customtkinter.__file__))")
+          SEP=$([[ "${{ matrix.os }}" == "windows-latest" ]] && echo ";" || echo ":")
           
           pyinstaller \
-            --name "si_finder" \
+            --name "SI-Finder" \
             --windowed \
             --onefile \
-            --add-data "assets${{ steps.set_separator.outputs.separator }}assets" \
-            --add-data "${CTK_PATH}${{ steps.set_separator.outputs.separator }}customtkinter" \
+            --add-data "assets${SEP}assets" \
+            --add-data "${CTK_PATH}${SEP}customtkinter" \
             --hidden-import=PIL.ImageTk \
             --hidden-import=PIL._tkinter_finder \
-            --icon "${{ matrix.os == 'windows-latest' && 'assets/images/icon.ico' || 'assets/images/icon-1024x1024.png' }}" \
+            --icon "assets/images/icon-1024x1024.png" \
             main.py
 
       - name: Package Windows
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
-          # Move file out of dist and rename if needed
-          Move-Item -Path dist/si_finder.exe -Destination SI-Finder.exe
-          # ZIP it directly (no subfolders)
-          Compress-Archive -Path SI-Finder.exe -DestinationPath SI-Finder-Windows.zip
+          # ZIP directly in root (no dist folder)
+          Compress-Archive -Path dist/SI-Finder.exe -DestinationPath SI-Finder-Windows.zip
 
       - name: Package Linux
         if: matrix.os == 'ubuntu-latest'
         run: |
-          # Move binary to root
-          mv dist/si_finder SI-Finder
-          # Include icon as a hidden file for the self-installation logic
-          cp assets/images/icon-1024x1024.png .SI-Finder-Icon.png
-          # Include simplified README
-          cp LINUX_README.md README.md
-          # Zip files directly (junk-paths ensures no subfolders)
-          zip -j SI-Finder-Ubuntu.zip SI-Finder .SI-Finder-Icon.png README.md
+          # Create a direct folder structure for the ZIP
+          mkdir -p SI-Finder-Linux/assets/images
+          cp dist/SI-Finder SI-Finder-Linux/
+          cp assets/images/icon-1024x1024.png SI-Finder-Linux/assets/images/
+          zip -r SI-Finder-Linux.zip SI-Finder-Linux/
 
-      - name: Upload Release Assets
+      - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
@@ -88,5 +73,4 @@ jobs:
           files: |
             SI-Finder-Ubuntu.zip
             SI-Finder-Windows.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+       
