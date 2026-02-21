@@ -18,7 +18,7 @@ import hashlib
 from tkinter import filedialog
 from i18n import translations
 
-VERSION = "v1.3.8"
+VERSION = "v1.3.9"
 DEFAULT_URL = "https://your-website.com/search?id="
 REPO_URL = "https://github.com/odsantos/similar-image-finder"
 PRIMARY_BLUE = "#1f538d"
@@ -116,7 +116,7 @@ def open_directory_in_explorer(dir_path):
 
 class ImageFinderApp(ctk.CTk):
     def __init__(self):
-        super().__init__() # Removed className, binary name "SI-Finder" sets default WM_CLASS, and it must match the Startup WM_Class in the .desktop file for Linux icons
+        super().__init__(className="SI-Finder") # Crucial for Linux taskbar group mapping
         
         self.withdraw() # Hide window during early setup/installation check
         
@@ -301,7 +301,7 @@ Icon={persistent_icon}
 Type=Application
 Categories=Graphics;Utility;
 Terminal=false
-StartupWMClass=Tk
+StartupWMClass=SI-Finder
 """
         try:
             with open(shortcut_path, "w") as f:
@@ -314,12 +314,12 @@ StartupWMClass=Tk
         """Helper to write the .desktop file."""
         desktop_content = f"""[Desktop Entry]
 Name=SI Finder
-Exec={exe_path}
+Exec="{exe_path}"
 Icon={icon_path}
 Type=Application
 Categories=Graphics;Utility;
 Terminal=false
-StartupWMClass=Tk
+StartupWMClass=SI-Finder
 Comment=Similar Image Finder
 """
         with open(shortcut_path, "w") as f:
