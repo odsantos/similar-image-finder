@@ -271,7 +271,7 @@ Comment=Similar Image Finder
         self.wait_variable(wait_var) # This blocks __init__ from continuing
         
         return True
-        
+
     def install_linux_to_system(self):
         """Self-installation logic to fix GNOME/Wayland icon mapping."""
         app_dir = os.path.expanduser("~/.local/share/SI-Finder")
