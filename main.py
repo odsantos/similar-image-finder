@@ -125,6 +125,11 @@ class ImageFinderApp(ctk.CTk):
         self.current_font_size = 12
         self.db_path = None
         self.status_state = None
+        self.last_search_image = None
+        self.active_popup = None
+        self.active_popup_type = None
+        self.current_info_title_key = None
+        self.current_info_msg_key = None
         self._icon_storage = [] # Essential: prevents Linux from clearing icons from memory
         ctk.set_appearance_mode("System")  # Detect system theme on startup
         
