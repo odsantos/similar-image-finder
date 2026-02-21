@@ -116,15 +116,17 @@ def open_directory_in_explorer(dir_path):
 
 class ImageFinderApp(ctk.CTk):
     def __init__(self):
-        # className is vital for Linux taskbar/window grouping
-        # It sets the correct WM_CLASS for the window manager, and it must match the Startup WM_Class in the .desktop file for Linux icons
-        super().__init__(className="si_finder")
+        super().__init__() # Removed className, binary name "SI-Finder" sets default WM_CLASS, and it must match the Startup WM_Class in the .desktop file for Linux icons
         
         self.withdraw() # Hide window during early setup/installation check
         
+        # Initialize core variables before any setup logic
         self.lang = "en"
+        self.current_font_size = 12
+        self.db_path = None
         self.status_state = None
         self._icon_storage = [] # Essential: prevents Linux from clearing icons from memory
+        ctk.set_appearance_mode("System")  # Detect system theme on startup
         
         # 1. Configuration/Installation Flow (Linux Only)
         setup_ready = True
