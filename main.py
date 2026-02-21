@@ -18,7 +18,7 @@ import hashlib
 from tkinter import filedialog
 from i18n import translations
 
-VERSION = "v1.3.7"
+VERSION = "v1.3.8"
 DEFAULT_URL = "https://your-website.com/search?id="
 REPO_URL = "https://github.com/odsantos/similar-image-finder"
 PRIMARY_BLUE = "#1f538d"
@@ -314,7 +314,7 @@ StartupWMClass=si_finder
         """Helper to write the .desktop file."""
         desktop_content = f"""[Desktop Entry]
 Name=SI Finder
-Exec="{exe_path}"
+Exec={exe_path}
 Icon={icon_path}
 Type=Application
 Categories=Graphics;Utility;
