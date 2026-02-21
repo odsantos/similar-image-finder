@@ -301,7 +301,7 @@ Icon={persistent_icon}
 Type=Application
 Categories=Graphics;Utility;
 Terminal=false
-StartupWMClass=si_finder
+StartupWMClass=Tk
 """
         try:
             with open(shortcut_path, "w") as f:
@@ -319,7 +319,7 @@ Icon={icon_path}
 Type=Application
 Categories=Graphics;Utility;
 Terminal=false
-StartupWMClass=si_finder
+StartupWMClass=Tk
 Comment=Similar Image Finder
 """
         with open(shortcut_path, "w") as f:
