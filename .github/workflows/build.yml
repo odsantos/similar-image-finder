@@ -76,7 +76,7 @@ jobs:
           # Include simplified README
           cp LINUX_README.md README.md
           # Zip files directly (junk-paths ensures no subfolders)
-          zip -j SI-Finder-Ubuntu.zip SI-Finder .SI-Finder-Icon.png README.md
+          zip -j SI-Finder-Linux.zip SI-Finder .SI-Finder-Icon.png README.md
 
       - name: Release Assets
         uses: softprops/action-gh-release@v1
@@ -85,7 +85,6 @@ jobs:
           draft: true
           prerelease: false
           files: |
-            SI-Finder-Ubuntu.zip
-            SI-Finder-Windows.zip
+            ${{ matrix.os == 'ubuntu-latest' && 'SI-Finder-Linux.zip' || 'SI-Finder-Windows.zip' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
