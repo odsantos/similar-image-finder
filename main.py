@@ -18,7 +18,7 @@ import hashlib
 from tkinter import filedialog
 from i18n import translations
 
-VERSION = "v1.3.7"
+VERSION = "v1.3.6"
 DEFAULT_URL = "https://your-website.com/search?id="
 REPO_URL = "https://github.com/odsantos/similar-image-finder"
 PRIMARY_BLUE = "#1f538d"
@@ -116,199 +116,143 @@ def open_directory_in_explorer(dir_path):
 
 class ImageFinderApp(ctk.CTk):
     def __init__(self):
-        super().__init__() # Removed className, binary name "SI-Finder" sets default WM_CLASS, and it must match the Startup WM_Class in the .desktop file for Linux icons
+        super().__init__()
         
         self.withdraw() # Hide window during early setup/installation check
         
-        # Initialize core variables before any setup logic
+        # FIX: Set WM_CLASS for Linux dock/taskbar association
+        if sys.platform == "linux":
+            try:
+                # WM_CLASS must match StartupWMClass in .desktop for taskbar icon
+                self.wm_name("si_finder")
+                self.wm_instance("si_finder")
+                
+                # Trigger self-installation if not in a persistent home
+                if self.install_linux_to_system():
+                    # If installation happened and triggered a relaunch, exit this process
+                    sys.exit(0)
+            except Exception as e:
+                print(f"Error during Linux startup: {e}")
+
+        ctk.set_appearance_mode("System")  # Detect system theme on startup
         self.lang = "en"
-        self.current_font_size = 12
         self.db_path = None
+        self.current_font_size = 12
+        self.thumbnails = []
         self.status_state = None
-        self.last_search_image = None
         self.active_popup = None
         self.active_popup_type = None
-        self.current_info_title_key = None
-        self.current_info_msg_key = None
-        self._icon_storage = [] # Essential: prevents Linux from clearing icons from memory
-        ctk.set_appearance_mode("System")  # Detect system theme on startup
-        
-        # 1. Configuration/Installation Flow (Linux Only)
-        setup_ready = True
-        if sys.platform == "linux":
-            setup_ready = self.run_linux_setup_flow()
-        
-        # 2. Setup Icons for all future windows
+        self.last_search_image = None
+        self.previous_status_text = ""
+
+        # Keys for dynamic translation of help dialogs
+        self.current_info_title_key = ""
+        self.current_info_msg_key = ""
+
         self.set_window_icon(self)
-        
-        # 3. Build UI logic
         self.setup_ui()
         self.update_ui_text()
         
-        # 4. Only show the main UI if setup was already done or user clicked OK
-        if setup_ready:
-            self.after(200, self.deiconify)
+        # Finally show the window if we are at the correct location
+        # If we were installing, sys.exit(0) would have happened before this
+        self.after(100, self.deiconify)
 
     def set_window_icon(self, window):
-        """Standardized icon loading for Wayland/X11 and Windows."""
+        """Sets the window icon for both Windows and Linux/macOS."""
         try:
             if sys.platform == "win32":
                 icon_path = resource_path("assets/images/icon.ico")
                 if os.path.exists(icon_path):
+                    # Set immediately
                     window.iconbitmap(icon_path)
+                    # For Toplevels, Windows often needs a retry after it's deiconified/mapped
+                    if isinstance(window, ctk.CTkToplevel):
+                        window.after(200, lambda: window.iconbitmap(icon_path))
+                        window.after(500, lambda: window.iconbitmap(icon_path))
             else:
-                # Linux/macOS: Load multiple sizes for better GNOME/Wayland support
                 icon_path = resource_path("assets/images/icon-1024x1024.png")
-
-                # Fallback for when running from the uncompressed folder during first launch
-                if not os.path.exists(icon_path):
-                    icon_path = resource_path(".SI-Finder-Icon.png")
-             
                 if os.path.exists(icon_path):
                     img = Image.open(icon_path)
+                    
+                    # Prevent Garbage Collection
+                    if not hasattr(self, '_icon_storage'):
+                        self._icon_storage = []
+                    
+                    # Create multiple sizes (standard for GNOME/Wayland)
                     photo_icons = []
-                    # 16-128 are the standard sizes for window title bars and task switchers ('256' is for the dock/taskbar)
                     for size in (16, 32, 64, 128, 256):
                         resized = img.resize((size, size), Image.Resampling.LANCZOS)
                         ph = ImageTk.PhotoImage(resized)
                         photo_icons.append(ph)
-                        self._icon_storage.append(ph) # Keep references alive
+                        self._icon_storage.append(ph)
                     
-                    # True makes this the default icon for ALL windows (Main, Toplevels, Dialogs)
+                    # 'True' applies this icon to all future popup dialogs automatically
                     window.iconphoto(True, *photo_icons)
         except Exception as e:
-            logging.error(f"Error loading icon: {e}")
-
-    def run_linux_setup_flow(self) -> bool:
-        """Handles first-launch configuration. Returns True if UI should open immediately."""
-        app_dir = os.path.expanduser("~/.local/share/SI-Finder")
-        shortcut_path = os.path.expanduser("~/.local/share/applications/si_finder.desktop")
-        
-        # If shortcut exists, it's not the first launch
-        if os.path.exists(shortcut_path):
-            return True
-
-        # STAGE 1: 'Configuring...' Dialog (No buttons)
-        conf_dialog = ctk.CTkToplevel(self)
-        conf_dialog.title("SI Finder")
-        conf_dialog.geometry("400x150")
-        conf_dialog.resizable(False, False)
-        self.set_window_icon(conf_dialog)
-        
-        ctk.CTkLabel(
-            conf_dialog, 
-            text="Configuring SI Finder...", 
-            font=("Arial", 16, "bold")
-        ).pack(pady=(30, 10))
-        
-        ctk.CTkLabel(
-            conf_dialog, 
-            text="Please wait a moment while we set up your system.", 
-            font=("Arial", 12)
-        ).pack()
-        
-        conf_dialog.grab_set() # Prevent clicking main window
-        self.update() # Force drawing of the dialog
-
-        # Perform logic
-        try:
-            os.makedirs(app_dir, exist_ok=True)
-            persistent_icon = os.path.join(app_dir, "icon.png")
-            
-            # Copy binary and icon to ~/.local/share/
-            bundled_icon = resource_path(".SI-Finder-Icon.png")
-            if os.path.exists(bundled_icon):
-                import shutil
-                shutil.copy2(bundled_icon, persistent_icon)
-
-            # Create the .desktop file
-            desktop_content = f"""[Desktop Entry]
-Name=SI Finder
-Exec="{sys.argv[0]}"
-Icon={persistent_icon}
-Type=Application
-Categories=Graphics;Utility;
-Terminal=false
-StartupWMClass=si_finder
-Comment=Similar Image Finder
-"""
-            with open(shortcut_path, "w") as f:
-                f.write(desktop_content)
-            os.chmod(shortcut_path, 0o755)
-        except Exception as e:
-            logging.error(f"Setup error: {e}")
-        
-        # Close 'Configuring' dialog
-        conf_dialog.destroy()
-
-        # STAGE 2: 'Success' Dialog (With OK button)
-        success_dialog = ctk.CTkToplevel(self)
-        success_dialog.title("Configuration Complete")
-        success_dialog.geometry("500x320")
-        success_dialog.resizable(False, False)
-        self.set_window_icon(success_dialog)
-        
-        msg = (
-            "SI Finder has been successfully configured!\n\n"
-            f"• Executable registered at: {sys.argv[0]}\n"
-            "• Application shortcut added to your Applications Menu.\n"
-            "• You can now move this executable anywhere else.\n"
-            "• You may safely delete this uncompressed folder.\n\n"
-            "Click OK to start the application."
-        )
-        
-        ctk.CTkLabel(
-            success_dialog, 
-            text=msg, 
-            justify="left", 
-            font=("Arial", 13), 
-            wraplength=450
-        ).pack(pady=30, padx=20)
-
-        # Setup variable to wait for button click
-        wait_var = ctk.BooleanVar(value=False)
-
-        def on_ok():
-            wait_var.set(True)
-            success_dialog.destroy()
-
-        ctk.CTkButton(success_dialog, text="OK", command=on_ok, width=120).pack(pady=(0, 20))
-        
-        success_dialog.grab_set()
-        self.wait_variable(wait_var) # This blocks __init__ from continuing
-        
-        return True
+            print(f"Error loading icon: {e}")
 
     def install_linux_to_system(self):
-        """Self-installation logic to fix GNOME/Wayland icon mapping."""
-        app_dir = os.path.expanduser("~/.local/share/SI-Finder")
-        shortcut_path = os.path.expanduser("~/.local/share/applications/si_finder.desktop")
-        persistent_icon = os.path.join(app_dir, "icon.png")
-        
-        os.makedirs(app_dir, exist_ok=True)
-        
-        # Copy icon to persistent location
-        bundled_icon = resource_path("assets/images/icon-1024x1024.png")
-        if os.path.exists(bundled_icon):
-            import shutil
-            shutil.copy2(bundled_icon, persistent_icon)
+        """Automatically moves the app to a persistent location on first run.
+        Returns True if a relaunch was triggered, False otherwise.
+        """
+        if sys.platform != "linux":
+            return False
 
-        # Create desktop entry with StartupWMClass for icon grouping
-        desktop_content = f"""[Desktop Entry]
-Name=SI Finder
-Exec="{sys.argv[0]}"
-Icon={persistent_icon}
-Type=Application
-Categories=Graphics;Utility;
-Terminal=false
-StartupWMClass=si_finder
-"""
+        persistent_dir = self.get_app_dir() # ~/.local/share/SI-Finder
+        shortcut_path = os.path.expanduser("~/.local/share/applications/si_finder.desktop")
+        
+        # Determine current executable path
+        current_exe = os.path.abspath(sys.argv[0])
+        persistent_exe = os.path.join(persistent_dir, "SI-Finder")
+        persistent_icon = os.path.join(persistent_dir, "icon.png")
+
+        # If we are already running from the persistent home, just ensure shortcut exists
+        if current_exe == persistent_exe:
+            if not os.path.exists(shortcut_path):
+                self._create_desktop_file(persistent_exe, persistent_icon, shortcut_path)
+            return False
+
+        # Perform migration
         try:
-            with open(shortcut_path, "w") as f:
-                f.write(desktop_content)
-            os.chmod(shortcut_path, 0o755)
+            import shutil
+            import subprocess
+            os.makedirs(persistent_dir, exist_ok=True)
+            
+            # 1. Copy binary
+            if not os.path.exists(persistent_exe) or os.path.getmtime(current_exe) > os.path.getmtime(persistent_exe):
+                shutil.copy2(current_exe, persistent_exe)
+                os.chmod(persistent_exe, 0o755)
+                # Set metadata icon for file manager (Nautilus)
+                try:
+                    subprocess.run(["gio", "set", "-t", "string", persistent_exe, "metadata::custom-icon", f"file://{persistent_icon}"], check=False)
+                except:
+                    pass
+
+            # 2. Copy icon (look for bundled resource or local dot-prefixed companion)
+            bundled_icon = resource_path("assets/images/icon-1024x1024.png")
+            local_hidden_icon = os.path.join(os.path.dirname(current_exe), ".SI-Finder-Icon.png")
+            
+            if os.path.exists(bundled_icon):
+                shutil.copy2(bundled_icon, persistent_icon)
+            elif os.path.exists(local_hidden_icon):
+                shutil.copy2(local_hidden_icon, persistent_icon)
+
+            # 3. Create Desktop Shortcut
+            self._create_desktop_file(persistent_exe, persistent_icon, shortcut_path)
+            
+            # 4. Notify User and Relaunch
+            print(f"Installation successful. Relaunching from {persistent_exe}")
+            
+            # Show notification (this will block until closed)
+            self._show_install_notification()
+            
+            # Launch the persistent binary
+            subprocess.Popen([persistent_exe])
+            return True
+            
         except Exception as e:
-            logging.error(f"Linux shortcut failed: {e}")
+            print(f"Linux self-installation failed: {e}")
+            return False
 
     def _create_desktop_file(self, exe_path, icon_path, shortcut_path):
         """Helper to write the .desktop file."""
@@ -825,7 +769,6 @@ Comment=Similar Image Finder
         self.theme_switch.configure(text=t["dark_mode"])
         self.about_button.configure(text=t["about_button"])
 
-        # Determine the status text based on state
         if self.status_state == "complete":
             status_text = t["status_complete"]
         elif self.status_state == "searching":
@@ -837,11 +780,10 @@ Comment=Similar Image Finder
         else:
             status_text = ""
 
-        # Dynamic Styling for "Searching..."
         if self.status_state == "searching":
             self.status_label.configure(
                 text=status_text,
-                text_color=("black", "white"), # Blue in light mode, Cyan in dark
+                text_color=("black", "white"),
                 fg_color=("#ffcb76", "#997a00")  # Amber/Gold (between yellow and orange)
             )
         else:
