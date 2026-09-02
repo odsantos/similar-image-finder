@@ -262,6 +262,7 @@ Comment=Similar Image Finder
     def _show_install_notification(self):
         """Shows a one-time message after successful migration."""
         from tkinter import messagebox
+        self.withdraw()  # <-- Hides the empty background window
         messagebox.showinfo(
             "SI Finder Installed",
             "SI Finder is now in your Applications menu! 🚀\n\n"
