@@ -116,10 +116,10 @@ def open_directory_in_explorer(dir_path):
 
 class ImageFinderApp(ctk.CTk):
     def __init__(self):
-        super().__init__()
+        super().__init__(className="si_finder")
         
         # FIX: Set WM_CLASS for Linux dock/taskbar association
-        if sys.platform == "linux":
+        if sys.platform == "linux" and getattr(sys, "frozen", False):
             try:
                 # Trigger self-installation if not in a persistent home
                 if self.install_linux_to_system():
@@ -139,6 +139,8 @@ class ImageFinderApp(ctk.CTk):
         self.active_popup_type = None
         self.last_search_image = None
         self.previous_status_text = ""
+        self.current_matches = []
+        self.current_search_type = None
 
         # Keys for dynamic translation of help dialogs
         self.current_info_title_key = ""
@@ -193,7 +195,7 @@ class ImageFinderApp(ctk.CTk):
         shortcut_path = os.path.expanduser("~/.local/share/applications/si_finder.desktop")
         
         # Determine current executable path
-        current_exe = os.path.abspath(sys.argv[0])
+        current_exe = os.path.abspath(sys.executable)
         persistent_exe = os.path.join(persistent_dir, "SI-Finder")
         persistent_icon = os.path.join(persistent_dir, "icon.png")
 
@@ -747,6 +749,8 @@ Comment=Similar Image Finder
         self.title(t["title"])
         self.index_button.configure(text=t["index_button"])
         self.search_button.configure(text=t["search_button"])
+        self.lesson_search_button.configure(text=t["lesson_search_button"])
+        self.export_button.configure(text=t["export_button"])
         self.load_index_button.configure(
             text=t.get("manage_indexes_button", "Manage Indexes")
         )
@@ -878,6 +882,26 @@ Comment=Similar Image Finder
         )
         self.repeat_search_button.bind("<Enter>", self.on_repeat_hover)
         self.repeat_search_button.bind("<Leave>", self.on_repeat_leave)
+
+        self.lesson_search_button = ctk.CTkButton(
+            self.sidebar_frame,
+            height=STD_HEIGHT,
+            command=self.start_lesson_search_thread,
+            fg_color=PRIMARY_BLUE,
+            hover_color=HOVER_BLUE,
+        )
+        self.lesson_search_button.pack(padx=20, pady=5)
+
+        self.export_button = ctk.CTkButton(
+            self.sidebar_frame,
+            height=STD_HEIGHT,
+            command=self.export_results,
+            fg_color="transparent",
+            border_width=1,
+            hover_color=HOVER_BLUE,
+            text_color=("black", "white"),
+        )
+        self.export_button.pack(padx=20, pady=5)
 
         def on_enter(button):
             # On hover, the style is the same for both themes
@@ -1164,6 +1188,129 @@ Comment=Similar Image Finder
             target=self.run_search, args=(target_path,), daemon=True
         ).start()
 
+    def start_lesson_search_thread(self):
+        if not self.db_path:
+            self.show_custom_info("search_folder_missing_title", "search_folder_missing_msg")
+            return
+        self.clear_search_results()
+        threading.Thread(target=self.run_lesson_search, daemon=True).start()
+
+    def run_lesson_search(self):
+        self.status_state = "searching"
+        self.after(0, self.update_ui_text)
+        
+        conn = self.get_db_connection()
+        if not conn:
+            return
+        
+        cursor = conn.cursor()
+        cursor.execute("SELECT path, hash FROM images")
+        all_data = cursor.fetchall()
+        conn.close()
+        
+        # Group images by lesson ID (matching l_(\d+))
+        lessons = {}
+        pattern = re.compile(r"^l_(\d+)")
+        for path, h_str in all_data:
+            fname = os.path.basename(path)
+            match = pattern.match(fname)
+            if match:
+                lesson_id = match.group(1)
+                if lesson_id not in lessons:
+                    lessons[lesson_id] = []
+                lessons[lesson_id].append((path, imagehash.hex_to_hash(h_str)))
+        
+        threshold = self.threshold_slider.get()
+        matches = [] # Store as (dist, path1, path2, lesson_id)
+        
+        for lesson_id, images in lessons.items():
+            for i in range(len(images)):
+                path_i, hash_i = images[i]
+                for j in range(i + 1, len(images)):
+                    path_j, hash_j = images[j]
+                    dist = hash_i - hash_j
+                    if dist <= threshold:
+                        matches.append((dist, path_i, path_j, lesson_id))
+        
+        matches.sort(key=lambda x: x[0])
+        self.current_matches = matches
+        self.current_search_type = "lesson"
+        self.status_state = len(matches)
+        self.after(0, self.update_ui_text)
+        self.after(0, lambda: self.display_lesson_matches(matches))
+
+    def export_results(self):
+        if not self.current_matches:
+            self.show_custom_info("no_results_export_title", "no_results_export_msg")
+            return
+        
+        # Determine system Downloads folder
+        if sys.platform == "win32":
+            downloads_dir = os.path.join(os.environ.get("USERPROFILE", ""), "Downloads")
+        else:
+            downloads_dir = os.path.expanduser("~/Downloads")
+
+        save_path = filedialog.asksaveasfilename(
+            initialdir=downloads_dir,
+            defaultextension=".txt",
+            filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+            initialfile=f"search_results_{self.current_search_type}.txt"
+        )
+        if not save_path:
+            return
+        
+        try:
+            search_folder = ""
+            if self.db_path:
+                conn = self.get_db_connection()
+                if conn:
+                    res = conn.execute("SELECT value FROM info WHERE key='source_path'").fetchone()
+                    if res:
+                        search_folder = res[0]
+                    conn.close()
+            
+            with open(save_path, "w", encoding="utf-8") as f:
+                f.write(f"Source Folder: {search_folder}\n")
+                
+                if self.current_search_type == "standard":
+                    header = ["Distance", "Path"]
+                    data = []
+                    for dist, path in self.current_matches:
+                        rel_path = os.path.relpath(path, search_folder) if search_folder else path
+                        data.append([str(int(dist)), rel_path])
+                    
+                    # Calculate max widths
+                    widths = [max(len(h), max([len(row[i]) for row in data], default=0)) 
+                              for i, h in enumerate(header)]
+                    
+                    f.write("Standard Search Results\n")
+                    f.write(" | ".join([f"{h:<{widths[i]}}" for i, h in enumerate(header)]) + "\n")
+                    f.write("-" * sum(widths) + "\n")
+                    for row in data:
+                        f.write(" | ".join([f"{val:<{widths[i]}}" for i, val in enumerate(row)]) + "\n")
+
+                elif self.current_search_type == "lesson":
+                    header = ["Distance", "Lesson ID", "Path 1", "Path 2"]
+                    data = []
+                    for dist, p1, p2, lid in self.current_matches:
+                        rel_p1 = os.path.relpath(p1, search_folder) if search_folder else p1
+                        rel_p2 = os.path.relpath(p2, search_folder) if search_folder else p2
+                        data.append([str(int(dist)), str(lid), rel_p1, rel_p2])
+                    
+                    # Calculate max widths
+                    widths = [max(len(h), max([len(row[i]) for row in data], default=0)) 
+                              for i, h in enumerate(header)]
+                    
+                    f.write("Lesson Search Results\n")
+                    f.write(" | ".join([f"{h:<{widths[i]}}" for i, h in enumerate(header)]) + "\n")
+                    f.write("-" * sum(widths) + "\n")
+                    for row in data:
+                        f.write(" | ".join([f"{val:<{widths[i]}}" for i, val in enumerate(row)]) + "\n")
+            
+            self.show_custom_info("export_success_title", "export_success_msg")
+        except Exception as e:
+            self.show_custom_info("error_title", f"Failed to export results: {e}")
+
     def run_search(self, target_path):
         try:
             with Image.open(target_path) as img:
@@ -1213,6 +1360,8 @@ Comment=Similar Image Finder
                 self.after(0, lambda v=i / len(all_data): self.progress_bar.set(v))
         matches.sort(key=lambda x: x[0])
         conn.close()
+        self.current_matches = matches
+        self.current_search_type = "standard"
         self.status_state = len(matches)
         self.after(0, self.update_ui_text)
         self.after(0, lambda: self.display_matches(matches))
@@ -1245,6 +1394,85 @@ Comment=Similar Image Finder
                 args=(i, dist, path),
                 daemon=True
             ).start()
+
+    def display_lesson_matches(self, matches):
+        try:
+            globe_p, folder_p = resource_path("assets/images/globe.png"), resource_path("assets/images/folder.png")
+            self.ctk_globe, self.ctk_folder = self._load_icons(globe_p, folder_p)
+        except:
+            self.ctk_globe = self.ctk_folder = None
+
+        for i, (dist, p1, p2, lid) in enumerate(matches):
+            threading.Thread(
+                target=self._process_lesson_card_thread,
+                args=(i, dist, p1, p2, lid),
+                daemon=True
+            ).start()
+
+    def _process_lesson_card_thread(self, i, dist, p1, p2, lid):
+        try:
+            img1 = Image.open(p1)
+            img1.thumbnail((60, 60))
+            ctk_img1 = ctk.CTkImage(light_image=img1, dark_image=img1, size=img1.size)
+            
+            img2 = Image.open(p2)
+            img2.thumbnail((60, 60))
+            ctk_img2 = ctk.CTkImage(light_image=img2, dark_image=img2, size=img2.size)
+            
+            self.after(0, lambda: self.winfo_exists() and self._create_lesson_match_card_ui(i, dist, p1, p2, lid, ctk_img1, ctk_img2))
+        except Exception:
+            self.after(0, lambda: self.winfo_exists() and self._create_lesson_match_card_error(i, dist, p1, p2, lid))
+
+    def _create_lesson_match_card_ui(self, i, dist, p1, p2, lid, ctk_img1, ctk_img2):
+        card = ctk.CTkFrame(self.scrollable_frame)
+        card.grid(row=i // 4, column=i % 4, padx=10, pady=10, sticky="nsew")
+        self.thumbnails.extend([ctk_img1, ctk_img2])
+        
+        ctk.CTkLabel(card, text=f"Lesson {lid}", font=("Arial", self.current_font_size, "bold")).pack(pady=(5, 0))
+        
+        img_frame = ctk.CTkFrame(card, fg_color="transparent")
+        img_frame.pack(pady=5)
+        ctk.CTkLabel(img_frame, image=ctk_img1, text="").pack(side="left", padx=2)
+        ctk.CTkLabel(img_frame, text="≈", font=("Arial", 14)).pack(side="left", padx=2)
+        ctk.CTkLabel(img_frame, image=ctk_img2, text="").pack(side="left", padx=2)
+        
+        ctk.CTkLabel(
+            card, 
+            text=f"{os.path.basename(p1)}\n{os.path.basename(p2)}",
+            font=("Arial", self.current_font_size - 2),
+            wraplength=120
+        ).pack(pady=0)
+        
+        ctk.CTkLabel(
+            card,
+            text=f"Dist: {int(dist)}",
+            font=("Arial", self.current_font_size - 2),
+            text_color=("gray30", "gray70"),
+        ).pack(pady=(0, 5))
+        
+        btn_frame = ctk.CTkFrame(card, fg_color="transparent")
+        btn_frame.pack(pady=5)
+        
+        # Image 1 buttons
+        b1_frame = ctk.CTkFrame(btn_frame, fg_color="transparent")
+        b1_frame.pack(side="left", padx=2)
+        ctk.CTkButton(b1_frame, image=self.ctk_globe, text="" if self.ctk_globe else "W1", width=25, height=25, fg_color="transparent", hover_color=("gray80", "gray20"), command=lambda p=p1: self.handle_web_click(p)).pack(side="left", padx=1)
+        ctk.CTkButton(b1_frame, image=self.ctk_folder, text="" if self.ctk_folder else "F1", width=25, height=25, fg_color="transparent", hover_color=("gray80", "gray20"), command=lambda p=p1: reveal_file_in_explorer(p)).pack(side="left", padx=1)
+
+        # Image 2 buttons
+        b2_frame = ctk.CTkFrame(btn_frame, fg_color="transparent")
+        b2_frame.pack(side="left", padx=2)
+        ctk.CTkButton(b2_frame, image=self.ctk_globe, text="" if self.ctk_globe else "W2", width=25, height=25, fg_color="transparent", hover_color=("gray80", "gray20"), command=lambda p=p2: self.handle_web_click(p)).pack(side="left", padx=1)
+        ctk.CTkButton(b2_frame, image=self.ctk_folder, text="" if self.ctk_folder else "F2", width=25, height=25, fg_color="transparent", hover_color=("gray80", "gray20"), command=lambda p=p2: reveal_file_in_explorer(p)).pack(side="left", padx=1)
+        
+        self.bind_tree(card, lambda e: self._handle_mousewheel_event(e, self.scrollable_frame))
+
+    def _create_lesson_match_card_error(self, i, dist, p1, p2, lid):
+        card = ctk.CTkFrame(self.scrollable_frame)
+        card.grid(row=i // 4, column=i % 4, padx=10, pady=10, sticky="nsew")
+        ctk.CTkLabel(card, text=f"Lesson {lid} Error").pack(pady=40)
+        ctk.CTkLabel(card, text=f"{os.path.basename(p1)}\n{os.path.basename(p2)}", font=("Arial", self.current_font_size), wraplength=120).pack()
+        self.bind_tree(card, lambda e: self._handle_mousewheel_event(e, self.scrollable_frame))
 
     def _load_icons(self, globe_p, folder_p):
         globe_img = Image.open(globe_p).resize((20, 20))

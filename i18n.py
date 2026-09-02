@@ -3,6 +3,8 @@ translations = {
         "title": "SI Finder",
         "index_button": "Index Folder",
         "search_button": "Search Image",
+        "lesson_search_button": "Search Lessons",
+        "export_button": "Export Results",
         "current_search_folder": "Search Folder:",
         "threshold_label": "Sensitivity:",
         "results_label": "Results",
@@ -32,7 +34,11 @@ translations = {
         "confirm_button": "Confirm",
         "cancel_button": "Cancel",
         "search_folder_missing_title": "Search Folder Missing",
-        "search_folder_missing_msg": "Please select an index using 'Index Folder' or 'Manage Indexes' before searching for images."
+        "search_folder_missing_msg": "Please select an index using 'Index Folder' or 'Manage Indexes' before searching for images.",
+        "no_results_export_title": "No Results to Export",
+        "no_results_export_msg": "There are no search results to export. Please perform a search first.",
+        "export_success_title": "Export Successful",
+        "export_success_msg": "The search results have been exported successfully to the selected file."
     },
     "es": {
         "title": "SI Finder",
@@ -67,12 +73,17 @@ translations = {
         "confirm_button": "Confirmar",
         "cancel_button": "Cancelar",
         "search_folder_missing_title": "Carpeta de Búsqueda Ausente",
-        "search_folder_missing_msg": "Por favor, seleccione un índice usando 'Indexar Carpeta' o 'Gestionar Índices' antes de buscar imágenes."
+        "search_folder_missing_msg": "Por favor, seleccione un índice usando 'Indexar Carpeta' o 'Gestionar Índices' antes de buscar imágenes.",
+        "no_results_export_title": "No hay resultados para exportar",
+        "no_results_export_msg": "No hay resultados de búsqueda para exportar. Por favor, realice una búsqueda primero.",
+        "export_success_title": "Exportación Exitosa",
+        "export_success_msg": "Los resultados de la búsqueda se han exportado correctamente al archivo seleccionado."
     },
     "pt": {
         "title": "SI Finder",
         "index_button": "Indexar Pasta",
         "search_button": "Buscar Imagem",
+        "lesson_search_button": "Buscar Lições",
         "current_search_folder": "Pasta de Busca:",
         "threshold_label": "Sensibilidade:",
         "results_label": "Resultados",
@@ -102,6 +113,10 @@ translations = {
         "confirm_button": "Confirmar",
         "cancel_button": "Cancelar",
         "search_folder_missing_title": "Pasta de Busca Ausente",
-        "search_folder_missing_msg": "Por favor, selecione um índice usando 'Indexar Pasta' ou 'Gerir Índices' antes de buscar imagens."
+        "search_folder_missing_msg": "Por favor, selecione um índice usando 'Indexar Pasta' ou 'Gerir Índices' antes de buscar imagens.",
+        "no_results_export_title": "Sem resultados para exportar",
+        "no_results_export_msg": "Não há resultados de pesquisa para exportar. Por favor, realize uma pesquisa primeiro.",
+        "export_success_title": "Exportação Bem-Sucedida",
+        "export_success_msg": "Os resultados da pesquisa foram exportados com sucesso para o arquivo selecionado."
     }
 }

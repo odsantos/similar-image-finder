@@ -1,28 +1,7 @@
-# SI Finder - .gitignore
-# Developed through a collaboration between Osvaldo Santos and Gemini (Google AI)
-
-# --- Python ---
-__pycache__/
-*.py[cod]
-*$py.class
 venv/
-env/
-
-# --- Databases & Local Data ---
-# Ignore the data directory and any sqlite files generated during testing
-data/
-*.db
-*.sqlite3
-
-# --- PyInstaller / Building ---
-# These are generated during the 'build.yml' process or local testing
+__pycache__/
+*.pyc
 build/
 dist/
-*.spec
-
-# --- OS Specific ---
+*.db
 .DS_Store
-Thumbs.db
-
-# --- Assets ---
-# We keep the assets/ folder tracked as it contains required UI icons

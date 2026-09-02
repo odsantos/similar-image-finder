@@ -2,7 +2,7 @@
 
 A lightweight, cross-platform desktop application designed to find visually similar images within a directory using Perceptual Hashing (pHash).
 
-![Version](https://img.shields.io/badge/version-1.2.5-teal)
+![Version](https://img.shields.io/badge/version-1.3.5)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey)
 
@@ -39,7 +39,7 @@ If you prefer to run the application using your own Python environment:
 
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/odsantos/similar-image-finder.git](https://github.com/odsantos/similar-image-finder.git)
+   git clone https://github.com/odsantos/similar-image-finder.git
    cd similar-image-finder
    ```
 
