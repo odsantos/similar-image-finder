@@ -22,7 +22,7 @@ A lightweight, cross-platform desktop application designed to find visually simi
 
 For the best experience, download the pre-compiled official bundles. These require no technical setup—just extract and run.
 
-- **[Download for Windows & Linux on Gumroad](https://osvaldosantos.gumroad.com/)**
+- **[Download for Windows & Linux on GitHub Releases](https://github.com/odsantos/similar-image-finder/releases)**
 
 > [!NOTE]
 > **Windows:** Run the `.exe` file directly.  
@@ -31,7 +31,7 @@ For the best experience, download the pre-compiled official bundles. These requi
 > [!TIP]
 > **Standalone Execution**: SI Finder is a single-file application. After extraction, you can move the executable file (e.g., to your Desktop) for easy access. It does not need to stay inside a folder.
 
-*Purchasing a build helps support the continued development and maintenance of this project!*
+*SI Finder is 100% free and open-source. If you'd like to support development, you can [Donate on Gumroad](https://osvaldosantos.gumroad.com/l/similar-image-finder)*
 
 ### 🛠️ Build from Source (Advanced)
 

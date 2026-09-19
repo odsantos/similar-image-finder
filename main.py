@@ -6,6 +6,7 @@
 import customtkinter as ctk
 from PIL import Image, ImageTk
 import imagehash
+import json
 import sqlite3
 import os
 import sys
@@ -15,7 +16,7 @@ import webbrowser
 import logging
 import subprocess
 import hashlib
-from tkinter import filedialog
+from tkinter import filedialog, Menu
 from i18n import translations
 
 VERSION = "v1.3.5"
@@ -132,7 +133,7 @@ class ImageFinderApp(ctk.CTk):
         ctk.set_appearance_mode("System")  # Detect system theme on startup
         self.lang = "en"
         self.db_path = None
-        self.current_font_size = 12
+        self.current_font_size = 14
         self.thumbnails = []
         self.status_state = None
         self.active_popup = None
@@ -300,6 +301,36 @@ Comment=Similar Image Finder
                 os.makedirs(base_dir, exist_ok=True)
 
         return base_dir
+
+    def get_config_path(self):
+        return os.path.join(self.get_app_dir(), "settings.json")
+
+    def load_settings(self):
+        config_file = self.get_config_path()
+        if os.path.exists(config_file):
+            try:
+                with open(config_file, "r") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return {}
+
+    def save_setting(self, key, value):
+        settings = self.load_settings()
+        settings[key] = value
+        try:
+            with open(self.get_config_path(), "w") as f:
+                json.dump(settings, f, indent=2)
+        except Exception as e:
+            print(f"Error saving setting {key}: {e}")
+
+    def clear_base_url(self):
+        self.url_entry.delete(0, "end")
+        if hasattr(self.url_entry, "_activate_placeholder"):
+            self.url_entry._activate_placeholder()  # Forces CTkEntry to show placeholder immediately
+        self.save_setting("base_url", "")
+        self.focus_set()
+
 
     def get_db_connection(self, specific_db=None):
         target_db = specific_db if specific_db else self.db_path
@@ -585,7 +616,7 @@ Comment=Similar Image Finder
 
     def show_about(self):
         t = translations[self.lang]
-        about_window = self._manage_popup(t["about_button"], "about")
+        about_window = self._manage_popup(t.get("about_button", "About"), "about")
         self.center_toplevel(about_window, 450, 320)
         about_window.grid_columnconfigure(0, weight=1)
         about_window.grid_rowconfigure((0, 3), weight=1)
@@ -595,7 +626,7 @@ Comment=Similar Image Finder
         self.about_msg_label.grid(row=1, column=0, padx=20, pady=(10, 5))
         self.about_link_label = ctk.CTkLabel(
             about_window,
-            text=t["repo_label"],
+            text=t.get("repo_label", "GitHub Repository"),
             text_color=("#1f538d", "#5dade2"),
             cursor="hand2",
             font=("Arial", self.current_font_size, "underline"),
@@ -621,8 +652,8 @@ Comment=Similar Image Finder
     def update_about_text(self):
         if self.active_popup and self.active_popup_type == "about":
             t = translations[self.lang]
-            self.about_msg_label.configure(text=t["about_text"].format(version=VERSION))
-            self.about_link_label.configure(text=t["repo_label"])
+            self.about_msg_label.configure(text=t.get("about_text", "About SI Finder {version}\n\nA tool for finding visually similar images.").format(version=VERSION))
+            self.about_link_label.configure(text=t.get("repo_label", "GitHub Repository"))
 
     def handle_web_click(self, path):
         current_url = self.url_entry.get().strip()
@@ -640,18 +671,21 @@ Comment=Similar Image Finder
 
     def change_font_size(self, size):
         self.current_font_size = int(size)
-        
+
         # Destroy existing option menus
         if hasattr(self, 'font_size_menu') and self.font_size_menu.winfo_exists():
             self.font_size_menu.destroy()
         if hasattr(self, 'lang_menu') and self.lang_menu.winfo_exists():
             self.lang_menu.destroy()
 
-        self.update_ui_text() # This updates texts of other widgets
-        self.update_font_globally(self) # This updates fonts of other widgets
-
-        # Re-create option menus with the new font size
+        self.update_ui_text()
         self._create_option_menus(self.current_font_size)
+        self.update_font_globally(self)
+
+        if hasattr(self, 'theme_switch') and self.theme_switch.winfo_exists():
+            self.theme_switch.pack_forget()
+            self.theme_switch.pack(side="bottom", padx=20, pady=(5, 5))
+
 
     def update_slider_label(self, val):
         self.threshold_value_label.configure(text=str(int(val)))
@@ -660,13 +694,15 @@ Comment=Similar Image Finder
         new_mode = "Dark" if self.theme_switch.get() else "Light"
         ctk.set_appearance_mode(new_mode)
 
-        # After changing the theme, reset the buttons to their default non-hovered state
+        # Reset button text colors for the active theme
         if new_mode == "Light":
             self.load_index_button.configure(text_color="black", fg_color="transparent")
             self.about_button.configure(text_color="black", fg_color="transparent")
+            self.export_button.configure(text_color="black", fg_color="transparent")
         else:  # Dark mode
             self.load_index_button.configure(text_color="white", fg_color="transparent")
             self.about_button.configure(text_color="white", fg_color="transparent")
+            self.export_button.configure(text_color="white", fg_color="transparent")
 
     def change_language(self, new_lang):
         self.lang = new_lang
@@ -676,112 +712,110 @@ Comment=Similar Image Finder
             self.update_font_globally(self.active_popup)
 
     def update_font_globally(self, master):
+        font_obj = ctk.CTkFont(size=self.current_font_size)
         for widget in master.winfo_children():
             try:
-                if hasattr(widget, "configure") and not isinstance(
+                if isinstance(widget, ctk.CTkOptionMenu):
+                    widget.configure(font=font_obj, dropdown_font=font_obj)
+                elif hasattr(widget, "configure") and not isinstance(
                     widget, (ctk.CTkScrollableFrame, ctk.CTkFrame)
                 ):
-                    widget.configure(font=ctk.CTkFont(size=self.current_font_size))
+                    widget.configure(font=font_obj)
             except:
                 pass
             if hasattr(widget, "winfo_children") and widget.winfo_children():
                 self.update_font_globally(widget)
 
+
     def _create_option_menus(self, font_size):
-        # Language Option Menu (Packed last, so visually at the very bottom)
+        font_obj = ctk.CTkFont(size=font_size)
+
+        # Language Option Menu
         self.lang_menu = ctk.CTkOptionMenu(
             self.sidebar_frame,
             values=["en", "es", "pt"],
-            height=STD_HEIGHT - 4, # Adjusted height
+            height=STD_HEIGHT - 4,
             command=self.change_language,
             fg_color=PRIMARY_BLUE,
             button_color=PRIMARY_BLUE,
             button_hover_color=HOVER_BLUE,
-            font=ctk.CTkFont(size=font_size)
+            font=font_obj,
+            dropdown_font=font_obj  # <--- ADD THIS
         )
         self.lang_menu.pack(side="bottom", padx=20, pady=(5, 5))
-        self.lang_menu.set(self.lang) # Set initial selected value
+        self.lang_menu.set(self.lang)
 
         # Font Size Option Menu
         self.font_size_menu = ctk.CTkOptionMenu(
             self.sidebar_frame,
             values=["12", "14", "16", "18", "20"],
-            height=STD_HEIGHT - 4, # Adjusted height
+            height=STD_HEIGHT - 4,
             command=self.change_font_size,
             fg_color=PRIMARY_BLUE,
             button_color=PRIMARY_BLUE,
             button_hover_color=HOVER_BLUE,
-            font=ctk.CTkFont(size=font_size)
+            font=font_obj,
+            dropdown_font=font_obj  # <--- ADD THIS
         )
         self.font_size_menu.pack(side="bottom", padx=20, pady=(5, 5))
-        self.font_size_menu.set(str(font_size)) # Set initial selected value
+        self.font_size_menu.set(str(font_size))
 
-        # Dark Mode Toggle (Packed before option menus, so visually above them)
-        self.theme_switch = ctk.CTkSwitch(
-            self.sidebar_frame,
-            text="",
-            command=self.toggle_theme,
-            progress_color=PRIMARY_BLUE,
-        )
-        self.theme_switch.pack(side="bottom", padx=20, pady=(5, 5))
-        
-        # Sync switch with current system/theme mode
-        if ctk.get_appearance_mode() == "Dark":
-            self.theme_switch.select()
-        else:
-            self.theme_switch.deselect()
 
     def on_repeat_hover(self, event):
         if self.last_search_image:
             self.previous_status_text = self.status_label.cget("text")
             fname = os.path.basename(self.last_search_image)
             self.status_label.configure(
-                text=f"Reuse: {fname}", text_color=("#1f538d", "#5dade2")
+                text=f"Reuse: {fname}", text_color="white"
             )
 
     def on_repeat_leave(self, event):
         if hasattr(self, "previous_status_text"):
             self.status_label.configure(
-                text=self.previous_status_text, text_color=("black", "white")
+                text=self.previous_status_text, text_color="white"
             )
 
     def update_ui_text(self):
         t = translations[self.lang]
-        self.title(t["title"])
-        self.index_button.configure(text=t["index_button"])
-        self.search_button.configure(text=t["search_button"])
-        self.lesson_search_button.configure(text=t["lesson_search_button"])
-        self.export_button.configure(text=t["export_button"])
+        self.title(t.get("title", "SI Finder"))
+
+        self.index_button.configure(text=t.get("index_button", "Index Folder"))
+        self.search_button.configure(text=t.get("search_button", "Search Image"))
+        self.lesson_search_button.configure(text=t.get("lesson_search_button", "Search Lessons"))
+        self.export_button.configure(text=t.get("export_button", "Export Results"))
         self.load_index_button.configure(
             text=t.get("manage_indexes_button", "Manage Indexes")
         )
-        self.label_threshold.configure(text=t["threshold_label"])
-        self.url_label.configure(text=t["base_url"])
-        self.theme_switch.configure(text=t["dark_mode"])
-        self.about_button.configure(text=t["about_button"])
+        self.label_threshold.configure(text=t.get("threshold_label", "Sensitivity:"))
+        self.url_label.configure(text=t.get("base_url", "Base URL:"))
+        self.theme_switch.configure(text=t.get("dark_mode", "Dark Mode"))
+        self.about_button.configure(text=t.get("about_button", "About"))
 
         if self.status_state == "complete":
-            status_text = t["status_complete"]
+            status_text = t.get("status_complete", "Complete")
         elif self.status_state == "searching":
-            status_text = t["status_searching"]
+            status_text = t.get("status_searching", "Searching...")
         elif isinstance(self.status_state, int):
-            status_text = t["found_matches"].format(count=self.status_state)
+            status_text = t.get("found_matches", "Found {count} matches").format(count=self.status_state)
         elif self.status_state == "index_loaded":
             status_text = t.get("status_index_loaded", "Index Loaded")
         else:
             status_text = ""
 
-        if self.status_state == "searching":
+        if not status_text:
+            self.status_label.configure(text="", fg_color="transparent")
+        elif self.status_state == "searching":
             self.status_label.configure(
                 text=status_text,
                 text_color=("black", "white"),
-                fg_color=("#ffcb76", "#997a00")  # Amber/Gold (between yellow and orange)
+                fg_color=("#ffcb76", "#997a00")  # Amber/Gold badge during search
             )
         else:
+            # Teal badge (#008080) with white text for both light & dark modes
             self.status_label.configure(
                 text=status_text,
-                text_color=("black", "white"),
-                fg_color="transparent"
+                text_color="white",
+                fg_color="#008080"
             )
         self.previous_status_text = status_text
 
@@ -838,10 +872,10 @@ Comment=Similar Image Finder
                     )
 
     def setup_ui(self):
-        self.geometry("1200x800")
+        self.geometry("1200x850")
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
-        self.sidebar_frame = ctk.CTkFrame(self, width=250, corner_radius=0)
+        self.sidebar_frame = ctk.CTkScrollableFrame(self, width=250, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, sticky="nsew")
 
         self.logo_label = ctk.CTkLabel(
@@ -915,6 +949,13 @@ Comment=Similar Image Finder
             else:  # Dark mode
                 button.configure(text_color="white", fg_color="transparent")
 
+        self.export_button.bind(
+            "<Enter>", lambda event, b=self.export_button: on_enter(b)
+        )
+        self.export_button.bind(
+            "<Leave>", lambda event, b=self.export_button: on_leave(b)
+        )
+
         self.load_index_button = ctk.CTkButton(
             self.sidebar_frame,
             height=STD_HEIGHT,
@@ -938,9 +979,9 @@ Comment=Similar Image Finder
         self.progress_bar.pack(padx=20, pady=10)
         self.progress_bar.set(0)
         self.status_label = ctk.CTkLabel(
-            self.sidebar_frame, text="", font=ctk.CTkFont(size=11), wraplength=210, width=210
+            self.sidebar_frame, text="", font=ctk.CTkFont(size=11), wraplength=210, width=210, corner_radius=6
         )
-        self.status_label.pack(padx=20, pady=0)
+        self.status_label.pack(padx=20, pady=(16, 16))
         self.folder_info_label = ctk.CTkLabel(
             self.sidebar_frame, text="", font=ctk.CTkFont(size=10), text_color="gray"
         )
@@ -1007,9 +1048,120 @@ Comment=Similar Image Finder
             hover_color=HOVER_BLUE,
         ).pack(side="right")
 
-        self.url_entry = ctk.CTkEntry(self.sidebar_frame, height=STD_HEIGHT)
-        self.url_entry.pack(padx=20, pady=5, fill="x")
-        self.url_entry.insert(0, DEFAULT_URL)
+        # Load persistent Base URL if saved
+        saved_settings = self.load_settings()
+        saved_url = saved_settings.get("base_url", "")
+
+        url_input_frame = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
+        url_input_frame.pack(padx=20, pady=5, fill="x")
+
+        # Create self.url_entry FIRST
+        self.url_entry = ctk.CTkEntry(
+            url_input_frame,
+            height=STD_HEIGHT,
+            placeholder_text=DEFAULT_URL
+        )
+        self.url_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
+
+        if saved_url:
+            self.url_entry.insert(0, saved_url)
+
+        # URL Persistence Helper
+        def persist_url(event=None):
+            self.after(50, lambda: self.save_setting("base_url", self.url_entry.get().strip()))
+
+        # Middle-Click Paste Handler (Linux X11)
+        def on_middle_click(event):
+            self.url_entry.focus_set()
+            if hasattr(self.url_entry, "_deactivate_placeholder"):
+                self.url_entry._deactivate_placeholder()
+            self.after(200, persist_url)  # 200ms ensures X11 finishes paste before saving
+
+        self.url_entry.bind("<Button-2>", on_middle_click)
+        self.url_entry.bind("<ButtonRelease-2>", on_middle_click)
+
+        # Keyboard typing persistence
+        self.url_entry.bind("<KeyRelease>", persist_url)
+
+        # Ctrl+A / Ctrl+a to Select All
+        def select_all_url(event=None):
+            self.url_entry.select_range(0, "end")
+            self.url_entry.icursor("end")
+            return "break"
+
+        self.url_entry.bind("<Control-a>", select_all_url)
+        self.url_entry.bind("<Control-A>", select_all_url)
+
+        # Right-Click Context Menu (Cut, Copy, Paste, Select All)
+                # Right-Click Context Menu (Cut, Copy, Paste, Select All)
+        url_context_menu = Menu(self, tearoff=0)
+
+        def menu_cut():
+            try:
+                selected_text = self.url_entry.selection_get()
+                if selected_text:
+                    self.clipboard_clear()
+                    self.clipboard_append(selected_text)
+                    self.url_entry.delete("sel.first", "sel.last")
+                    persist_url()
+            except Exception:
+                pass
+
+        def menu_copy():
+            try:
+                selected_text = self.url_entry.selection_get()
+                if selected_text:
+                    self.clipboard_clear()
+                    self.clipboard_append(selected_text)
+            except Exception:
+                pass
+
+        def menu_paste():
+            try:
+                try:
+                    text = self.clipboard_get()
+                except Exception:
+                    text = ""
+                if not text:
+                    return
+
+                self.url_entry.focus_set()
+                if hasattr(self.url_entry, "_deactivate_placeholder"):
+                    self.url_entry._deactivate_placeholder()
+
+                try:
+                    if self.url_entry.selection_get():
+                        self.url_entry.delete("sel.first", "sel.last")
+                except Exception:
+                    pass
+
+                self.url_entry.insert("insert", text)
+                persist_url()
+            except Exception as e:
+                print(f"Error pasting: {e}")
+
+        url_context_menu.add_command(label="Cut", command=menu_cut)
+        url_context_menu.add_command(label="Copy", command=menu_copy)
+        url_context_menu.add_command(label="Paste", command=menu_paste)
+        url_context_menu.add_separator()
+        url_context_menu.add_command(label="Select All", command=lambda: select_all_url())
+
+        def show_url_context_menu(event):
+            url_context_menu.tk_popup(event.x_root, event.y_root)
+
+        self.url_entry.bind("<Button-3>", show_url_context_menu)
+
+        # Compact clear/delete icon button
+        self.clear_url_button = ctk.CTkButton(
+            url_input_frame,
+            text="🗑",
+            width=28,
+            height=STD_HEIGHT,
+            fg_color=PRIMARY_BLUE,
+            hover_color=HOVER_BLUE,
+            command=self.clear_base_url
+        )
+        self.clear_url_button.pack(side="right")
 
         # Spacer to push elements up
         spacer = ctk.CTkLabel(self.sidebar_frame, text="")
@@ -1032,12 +1184,19 @@ Comment=Similar Image Finder
         )
         self.about_button.pack(side="bottom", padx=20, pady=(20, 20))
 
-
-
-
-
         # Call helper method to create option menus
         self._create_option_menus(self.current_font_size)
+
+        # Dark Mode Toggle (Created ONCE in setup_ui)
+        self.theme_switch = ctk.CTkSwitch(
+            self.sidebar_frame,
+            text="",
+            command=self.toggle_theme,
+            progress_color=PRIMARY_BLUE,
+        )
+        self.theme_switch.pack(side="bottom", padx=20, pady=(5, 5))
+        if ctk.get_appearance_mode() == "Dark":
+            self.theme_switch.select()
 
         self.scrollable_frame = ctk.CTkScrollableFrame(self)
         self.scrollable_frame.grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
@@ -1056,6 +1215,9 @@ Comment=Similar Image Finder
         # Explicitly manage focus for scrolling
         self.scrollable_frame.bind("<Enter>", lambda event: self.scrollable_frame.focus_set())
         self.scrollable_frame.bind("<Leave>", lambda event: self.focus_set())
+        
+        # Enable mouse scroll wheel on left sidebar
+        self.bind_tree(self.sidebar_frame, lambda e: self._handle_mousewheel_event(e, self.sidebar_frame))
 
     def _on_scroll_page_up(self, event):
         self.scrollable_frame._parent_canvas.yview_scroll(-1, "pages")
@@ -1233,7 +1395,12 @@ Comment=Similar Image Finder
                     if dist <= threshold:
                         matches.append((dist, path_i, path_j, lesson_id))
         
-        matches.sort(key=lambda x: x[0])
+        matches.sort(
+            key=lambda x: (
+                x[0],
+                [int(c) if c.isdigit() else c.lower() for c in re.split(r"(\d+)", os.path.basename(x[1]))]
+            )
+        )
         self.current_matches = matches
         self.current_search_type = "lesson"
         self.status_state = len(matches)
@@ -1273,6 +1440,9 @@ Comment=Similar Image Finder
             with open(save_path, "w", encoding="utf-8") as f:
                 f.write(f"Source Folder: {search_folder}\n")
                 
+                if self.last_search_image:
+                    f.write(f"Search Image: {os.path.basename(self.last_search_image)}\n")
+
                 if self.current_search_type == "standard":
                     header = ["Distance", "Path"]
                     data = []
@@ -1359,7 +1529,13 @@ Comment=Similar Image Finder
                 matches.append((dist, path))
             if i % 100 == 0:
                 self.after(0, lambda v=i / len(all_data): self.progress_bar.set(v))
-        matches.sort(key=lambda x: x[0])
+
+        matches.sort(
+            key=lambda x: (
+                x[0],
+                [int(c) if c.isdigit() else c.lower() for c in re.split(r"(\d+)", os.path.basename(x[1]))]
+            )
+        )
         conn.close()
         self.current_matches = matches
         self.current_search_type = "standard"
