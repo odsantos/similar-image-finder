@@ -38,7 +38,10 @@ translations = {
         "no_results_export_title": "No Results to Export",
         "no_results_export_msg": "There are no search results to export. Please perform a search first.",
         "export_success_title": "Export Successful",
-        "export_success_msg": "The search results have been exported successfully to the selected file."
+        "export_success_msg": "The search results have been exported successfully to the selected file.",
+        "help_button": "Help",
+        "help_title": "SI Finder - User Guide",
+        "help_text": "Welcome to SI Finder!\n\n1. INDEX A FOLDER:\n• Click 'Index Folder' and select your image directory.\n• SI Finder calculates perceptual hashes (pHash) and stores them locally.\n\n2. SEARCH IMAGES:\n• Click 'Search Image' and choose a target image.\n• SI Finder will display all visually similar images in the gallery grid.\n\n3. SENSITIVITY SLIDER:\n• 0-5: Finds exact or near-identical images.\n• 6-10: Finds highly similar images (same content).\n• 11-20: Finds loosely related images (similar composition/colors).\n\n4. BASE URL & WEB LINKS:\n• If your images follow the 'l_IDp_ID' pattern, set a Base URL.\n• Click the Globe icon on any image card to open its webpage.\n\n5. MANAGE INDEXES:\n• Click 'Manage Indexes' to switch between saved folder databases or delete old ones.\n\n6. EXPORT RESULTS:\n• Click 'Export Results' to save your search matches to a text file."
     },
     "es": {
         "title": "SI Finder",
@@ -79,7 +82,10 @@ translations = {
         "no_results_export_title": "No hay resultados para exportar",
         "no_results_export_msg": "No hay resultados de búsqueda para exportar. Por favor, realice una búsqueda primero.",
         "export_success_title": "Exportación Exitosa",
-        "export_success_msg": "Los resultados de la búsqueda se han exportado correctamente al archivo seleccionado."
+        "export_success_msg": "Los resultados de la búsqueda se han exportado correctamente al archivo seleccionado.",
+        "help_button": "Ayuda",
+        "help_title": "SI Finder - Guía de Usuario",
+        "help_text": "¡Bienvenido a SI Finder!\n\n1. INDEXAR UNA CARPETA:\n• Haga clic en 'Indexar Carpeta' y seleccione su directorio de imágenes.\n• SI Finder calcula los hashes perceptuales (pHash) y los guarda localmente.\n\n2. BUSCAR IMÁGENES:\n• Haga clic en 'Buscar Imagen' y elija una imagen de referencia.\n• SI Finder mostrará todas las imágenes visualmente similares.\n\n3. SLIDER DE SENSIBILIDAD:\n• 0-5: Encuentra imágenes idénticas o casi idénticas.\n• 6-10: Encuentra imágenes muy similares.\n• 11-20: Encuentra imágenes variadas con composición o colores similares.\n\n4. URL BASE Y ENLACES WEB:\n• Si sus imágenes siguen el patrón 'l_IDp_ID', configure una URL Base.\n• Haga clic en el icono del Globo para abrir la página web correspondiente.\n\n5. GESTIONAR ÍNDICES:\n• Haga clic en 'Gestionar Índices' para cambiar o eliminar bases de datos guardadas.\n\n6. EXPORTAR RESULTADOS:\n• Haga clic en 'Exportar Resultados' para guardar las coincidencias en un archivo de texto."
     },
     "pt": {
         "title": "SI Finder",
@@ -120,6 +126,9 @@ translations = {
         "no_results_export_title": "Sem resultados para exportar",
         "no_results_export_msg": "Não há resultados de pesquisa para exportar. Por favor, realize uma pesquisa primeiro.",
         "export_success_title": "Exportação Bem-Sucedida",
-        "export_success_msg": "Os resultados da pesquisa foram exportados com sucesso para o arquivo selecionado."
+        "export_success_msg": "Os resultados da pesquisa foram exportados com sucesso para o arquivo selecionado.",
+        "help_button": "Ajuda",
+        "help_title": "SI Finder - Guia do Utilizador",
+        "help_text": "Bem-vindo ao SI Finder!\n\n1. INDEXAR UMA PASTA:\n• Clique em 'Indexar Pasta' e selecione a sua pasta de imagens.\n• O SI Finder calcula hashes perceptuais (pHash) e guarda-os localmente.\n\n2. PESQUISAR IMAGENS:\n• Clique em 'Buscar Imagem' e escolha a imagem alvo.\n• O SI Finder mostrará todas as imagens visualmente semelhantes na galeria.\n\n3. SLIDER DE SENSIBILIDADE:\n• 0-5: Encontra imagens idênticas ou quase idênticas.\n• 6-10: Encontra imagens muito semelhantes.\n• 11-20: Encontra variações mais amplas (composição/cores semelhantes).\n\n4. URL BASE E LINKS WEB:\n• Se as suas imagens seguem o padrão 'l_IDp_ID', defina um URL Base.\n• Clique no ícone do Globo para abrir a página web correspondente.\n\n5. GERIR ÍNDICES:\n• Clique em 'Gerir Índices' para alternar ou apagar bases de dados guardadas.\n\n6. EXPORTAR RESULTADOS:\n• Clique em 'Exportar Resultados' para guardar os resultados num ficheiro de texto."
     }
 }

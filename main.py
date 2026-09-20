@@ -433,10 +433,19 @@ Comment=Similar Image Finder
         t = translations[self.lang]
         self._manage_popup(t.get(title_key_override or "manage_indexes_title", "Manage Indexes"), "load")
         self.center_toplevel(self.active_popup, 500, 400)
+        
+        # Request the window to be shown
+        self.active_popup.deiconify() 
+        
+        # FORCE the OS to finish drawing the window right now.
+        # This eliminates the "grab failed" crash without using a timed delay.
+        self.active_popup.update_idletasks()
+        
+        # Now that the window is guaranteed to be 'viewable', we can grab focus.
+        self.active_popup.grab_set()
+        
+        # Load the content
         self.refresh_load_index_content()
-        self.active_popup.after(
-            10, lambda: [self.active_popup.deiconify(), self.active_popup.grab_set()]
-        )
 
     def refresh_load_index_content(self):
         if not self.active_popup or self.active_popup_type != "load":
@@ -444,13 +453,16 @@ Comment=Similar Image Finder
         for widget in self.active_popup.winfo_children():
             widget.destroy()
         t = translations[self.lang]
+        
+        # Use pack with expand=True to fill the window perfectly
         scroll = ctk.CTkScrollableFrame(self.active_popup)
         scroll.pack(fill="both", expand=True, padx=10, pady=10)
 
-        # Bind mouse wheel events directly to the scroll frame itself for empty areas
+	    # Bind mouse wheel events directly to the scroll frame itself for empty areas
         scroll.bind("<MouseWheel>", lambda e: self._handle_mousewheel_event(e, scroll)) # Windows/macOS
         scroll.bind("<Button-4>", lambda e: self._handle_mousewheel_event(e, scroll))   # Linux scroll up
         scroll.bind("<Button-5>", lambda e: self._handle_mousewheel_event(e, scroll))   # Linux scroll down
+        
         app_dir = self.get_app_dir()
         db_files = sorted([f for f in os.listdir(app_dir) if f.endswith(".db")])
         if not db_files:
@@ -460,6 +472,7 @@ Comment=Similar Image Finder
                 font=("Arial", self.current_font_size),
             ).pack(pady=20)
             return
+            
         for db_file in db_files:
             source_path = "Unknown path"
             try:
@@ -473,7 +486,8 @@ Comment=Similar Image Finder
             except:
                 pass
             item_frame = ctk.CTkFrame(scroll)
-            item_frame.pack(fill="x", pady=5, padx=5)
+            # Use pady=(0, 5) to remove the gap at the very top of the first item
+            item_frame.pack(fill="x", pady=(0, 5), padx=5)
 
             # Text frame for index name and path
             text_frame = ctk.CTkFrame(item_frame, fg_color="transparent")
@@ -515,10 +529,9 @@ Comment=Similar Image Finder
                 ),
             ).grid(row=0, column=1, sticky="ew", padx=(5, 0))
 
-            # THE FIX: Bind mouse wheel to this card and all its children
+            # Bind mouse wheel to this card and all its children
             # We pass 'scroll' so the handler knows which canvas to move
             self.bind_tree(item_frame, lambda e: self._handle_mousewheel_event(e, scroll))
-
 
         self.update_font_globally(self.active_popup)
 
@@ -649,6 +662,50 @@ Comment=Similar Image Finder
         self.update_about_text()
         self.update_font_globally(about_window)
 
+    def show_help(self):
+        t = translations[self.lang]
+        help_window = self._manage_popup(t.get("help_title", "User Guide"), "help")
+        self.center_toplevel(help_window, 550, 450)
+        help_window.grid_columnconfigure(0, weight=1)
+        help_window.grid_rowconfigure(0, weight=1)
+
+        scroll = ctk.CTkScrollableFrame(help_window)
+        scroll.pack(fill="both", expand=True, padx=15, pady=15)
+        
+        self.help_msg_label = ctk.CTkLabel(
+            scroll,
+            text="",
+            justify="left",
+            wraplength=480,
+            font=("Arial", self.current_font_size)
+        )
+        self.help_msg_label.pack(padx=10, pady=10, fill="both", expand=True)
+
+        # Enable mouse wheel scrolling for the help window (add these here, after the label is created)
+        self.bind_tree(scroll, lambda e: self._handle_mousewheel_event(e, scroll))
+        # Optional: Ensure the frame takes focus when the mouse enters it
+        scroll.bind("<Enter>", lambda event: scroll.focus_set())
+
+        ok_btn = ctk.CTkButton(
+            help_window,
+            text="OK",
+            width=100,
+            height=STD_HEIGHT,
+            command=help_window.destroy,
+            fg_color=PRIMARY_BLUE,
+            hover_color=HOVER_BLUE,
+        )
+        ok_btn.pack(pady=(0, 15))
+
+        help_window.after(50, lambda: [help_window.deiconify(), help_window.grab_set()])
+        self.update_help_text()
+        self.update_font_globally(help_window)
+
+    def update_help_text(self):
+        if self.active_popup and self.active_popup_type == "help":
+            t = translations[self.lang]
+            self.help_msg_label.configure(text=t.get("help_text", ""))
+
     def update_about_text(self):
         if self.active_popup and self.active_popup_type == "about":
             t = translations[self.lang]
@@ -697,10 +754,12 @@ Comment=Similar Image Finder
         # Reset button text colors for the active theme
         if new_mode == "Light":
             self.load_index_button.configure(text_color="black", fg_color="transparent")
+            self.help_button.configure(text_color="black", fg_color="transparent")
             self.about_button.configure(text_color="black", fg_color="transparent")
             self.export_button.configure(text_color="black", fg_color="transparent")
         else:  # Dark mode
             self.load_index_button.configure(text_color="white", fg_color="transparent")
+            self.help_button.configure(text_color="white", fg_color="transparent")
             self.about_button.configure(text_color="white", fg_color="transparent")
             self.export_button.configure(text_color="white", fg_color="transparent")
 
@@ -715,6 +774,10 @@ Comment=Similar Image Finder
         font_obj = ctk.CTkFont(size=self.current_font_size)
         for widget in master.winfo_children():
             try:
+                # Skip the logo label so it keeps its large font size
+                if widget == self.logo_label:
+                    continue
+                
                 if isinstance(widget, ctk.CTkOptionMenu):
                     widget.configure(font=font_obj, dropdown_font=font_obj)
                 elif hasattr(widget, "configure") and not isinstance(
@@ -789,6 +852,7 @@ Comment=Similar Image Finder
         self.label_threshold.configure(text=t.get("threshold_label", "Sensitivity:"))
         self.url_label.configure(text=t.get("base_url", "Base URL:"))
         self.theme_switch.configure(text=t.get("dark_mode", "Dark Mode"))
+        self.help_button.configure(text=t.get("help_button", "Help"))
         self.about_button.configure(text=t.get("about_button", "About"))
 
         if self.status_state == "complete":
@@ -870,6 +934,9 @@ Comment=Similar Image Finder
                     self.info_msg_label.configure(
                         text=t.get(self.current_info_msg_key, "")
                     )
+            elif self.active_popup_type == "help":
+                self.active_popup.title(t.get("help_title", "User Guide"))
+                self.update_help_text()
 
     def setup_ui(self):
         self.geometry("1200x850")
@@ -1167,6 +1234,7 @@ Comment=Similar Image Finder
         spacer = ctk.CTkLabel(self.sidebar_frame, text="")
         spacer.pack(expand=True, fill="both")
 
+        # About Button
         self.about_button = ctk.CTkButton(
             self.sidebar_frame,
             height=STD_HEIGHT,
@@ -1182,7 +1250,25 @@ Comment=Similar Image Finder
         self.about_button.bind(
             "<Leave>", lambda event, b=self.about_button: on_leave(b)
         )
-        self.about_button.pack(side="bottom", padx=20, pady=(20, 20))
+        self.about_button.pack(side="bottom", padx=20, pady=(5, 20))
+
+        # Help Button
+        self.help_button = ctk.CTkButton(
+            self.sidebar_frame,
+            height=STD_HEIGHT,
+            command=self.show_help,
+            fg_color="transparent",
+            border_width=1,
+            hover_color=HOVER_BLUE,
+            text_color=("black", "white"),
+        )
+        self.help_button.bind(
+            "<Enter>", lambda event, b=self.help_button: on_enter(b)
+        )
+        self.help_button.bind(
+            "<Leave>", lambda event, b=self.help_button: on_leave(b)
+        )
+        self.help_button.pack(side="bottom", padx=20, pady=(20, 5))
 
         # Call helper method to create option menus
         self._create_option_menus(self.current_font_size)
