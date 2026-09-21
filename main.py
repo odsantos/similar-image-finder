@@ -118,22 +118,28 @@ def open_directory_in_explorer(dir_path):
 class ImageFinderApp(ctk.CTk):
     def __init__(self):
         super().__init__(className="si_finder")
-        
-        # FIX: Set WM_CLASS for Linux dock/taskbar association
+
+        # Set WM_CLASS for Linux dock/taskbar association
         if sys.platform == "linux" and getattr(sys, "frozen", False):
             try:
-                # Trigger self-installation if not in a persistent home
                 if self.install_linux_to_system():
-                    # If installation happened, we should stop here
-                    # as the app has been relaunched from the new path
                     sys.exit(0)
             except Exception as e:
                 print(f"Error during Linux startup: {e}")
 
-        ctk.set_appearance_mode("System")  # Detect system theme on startup
-        self.lang = "en"
+        ctk.set_appearance_mode("System")
+        
+        # --- PERSISTENCE: Load settings ---
+        settings = self.load_settings()
+        self.lang = settings.get("lang", "en")
+        self.current_font_size = int(settings.get("font_size", 14))
+        self.saved_threshold = float(settings.get("threshold", 8))
+        self.saved_theme = settings.get("appearance_mode", "System")
+        
+        # Apply the saved theme to the engine
+        ctk.set_appearance_mode(self.saved_theme)
+
         self.db_path = None
-        self.current_font_size = 14
         self.thumbnails = []
         self.status_state = None
         self.active_popup = None
@@ -728,6 +734,7 @@ Comment=Similar Image Finder
 
     def change_font_size(self, size):
         self.current_font_size = int(size)
+        self.save_setting("font_size", self.current_font_size) # SAVE
 
         # Destroy existing option menus
         if hasattr(self, 'font_size_menu') and self.font_size_menu.winfo_exists():
@@ -746,10 +753,12 @@ Comment=Similar Image Finder
 
     def update_slider_label(self, val):
         self.threshold_value_label.configure(text=str(int(val)))
+        self.save_setting("threshold", float(val)) # SAVE
 
     def toggle_theme(self):
         new_mode = "Dark" if self.theme_switch.get() else "Light"
         ctk.set_appearance_mode(new_mode)
+        self.save_setting("appearance_mode", new_mode) # SAVE
 
         # Reset button text colors for the active theme
         if new_mode == "Light":
@@ -765,6 +774,8 @@ Comment=Similar Image Finder
 
     def change_language(self, new_lang):
         self.lang = new_lang
+        self.save_setting("lang", new_lang) # SAVE
+
         self.update_ui_text()
         self.update_font_globally(self)
         if self.active_popup and self.active_popup.winfo_exists():
@@ -866,21 +877,26 @@ Comment=Similar Image Finder
         else:
             status_text = ""
 
+        # --- UPDATED STATUS BADGE LOGIC ---
         if not status_text:
-            self.status_label.configure(text="", fg_color="transparent")
+            self.status_label.configure(text="")
+            self.status_badge_frame.configure(fg_color="transparent")
         elif self.status_state == "searching":
             self.status_label.configure(
                 text=status_text,
                 text_color=("black", "white"),
-                fg_color=("#ffcb76", "#997a00")  # Amber/Gold badge during search
             )
+            # Apply color to the FRAME for the badge effect
+            self.status_badge_frame.configure(fg_color=("#ffcb76", "#997a00")) 
         else:
-            # Teal badge (#008080) with white text for both light & dark modes
             self.status_label.configure(
                 text=status_text,
                 text_color="white",
-                fg_color="#008080"
             )
+            # Apply teal color to the FRAME
+            self.status_badge_frame.configure(fg_color="#008080")
+        # ----------------------------------
+        
         self.previous_status_text = status_text
 
         source_path = None
@@ -937,6 +953,44 @@ Comment=Similar Image Finder
             elif self.active_popup_type == "help":
                 self.active_popup.title(t.get("help_title", "User Guide"))
                 self.update_help_text()
+
+    def show_reset_confirmation(self):
+        """Confirmation dialog before resetting preferences."""
+        t = translations[self.lang]
+        self.show_confirmation_dialog(
+            "reset_confirm_title", 
+            "reset_confirm_msg", 
+            self.perform_reset
+        )
+
+    def perform_reset(self):
+        """Restores default preferences and clears session status."""
+        # Restore defaults in memory
+        self.lang = "en"
+        self.current_font_size = 14
+        self.saved_threshold = 8
+        self.saved_theme = "System"
+            
+        # Update UI Components
+        self.threshold_slider.set(8)
+        self.update_slider_label(8)
+        ctk.set_appearance_mode("System")
+        self.theme_switch.deselect() 
+            
+        # Save these defaults to settings.json
+        self.save_setting("lang", "en")
+        self.save_setting("font_size", 14)
+        self.save_setting("threshold", 8.0)
+        self.save_setting("appearance_mode", "System")
+            
+        # Clear session status and current results grid
+        self.status_state = None 
+        self.clear_search_results() 
+            
+        # Full UI Refresh
+        self.update_ui_text() 
+        self._create_option_menus(self.current_font_size)
+        self.update_font_globally(self)
 
     def setup_ui(self):
         self.geometry("1200x850")
@@ -1045,10 +1099,27 @@ Comment=Similar Image Finder
         )
         self.progress_bar.pack(padx=20, pady=10)
         self.progress_bar.set(0)
-        self.status_label = ctk.CTkLabel(
-            self.sidebar_frame, text="", font=ctk.CTkFont(size=11), wraplength=210, width=210, corner_radius=6
+
+        # 1. Create a Frame to act as the "Badge Background"
+        self.status_badge_frame = ctk.CTkFrame(
+            self.sidebar_frame, 
+            corner_radius=6, 
+            fg_color="transparent" # We will change this color dynamically
         )
-        self.status_label.pack(padx=20, pady=(16, 16))
+        self.status_badge_frame.pack(padx=20, pady=(16, 16))
+
+        # 2. Create the Label INSIDE that frame
+        self.status_label = ctk.CTkLabel(
+            self.status_badge_frame, 
+            text="", 
+            font=ctk.CTkFont(size=11), 
+            wraplength=200, 
+            justify="center",
+            text_color="white" # Default text color
+        )
+        # This pack() call now creates INTERNAL padding because it's inside the frame
+        self.status_label.pack(padx=15, pady=5)
+        
         self.folder_info_label = ctk.CTkLabel(
             self.sidebar_frame, text="", font=ctk.CTkFont(size=10), text_color="gray"
         )
@@ -1099,6 +1170,10 @@ Comment=Similar Image Finder
             self.sidebar_frame, text="8", font=ctk.CTkFont(size=11, weight="bold")
         )
         self.threshold_value_label.pack(padx=20, pady=(0, 0))
+
+        # Set the slider to the persistent value
+        self.threshold_slider.set(self.saved_threshold)
+        self.update_slider_label(self.saved_threshold)
 
         url_header = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
         url_header.pack(padx=20, pady=(15, 0), fill="x")
@@ -1234,6 +1309,18 @@ Comment=Similar Image Finder
         spacer = ctk.CTkLabel(self.sidebar_frame, text="")
         spacer.pack(expand=True, fill="both")
 
+        # Reset Button
+        self.reset_button = ctk.CTkButton(
+            self.sidebar_frame,
+            height=STD_HEIGHT,
+            command=self.show_reset_confirmation,
+            fg_color="transparent",
+            border_width=1,
+            hover_color=HOVER_BLUE,
+            text_color=("black", "white"),
+        )
+        self.reset_button.pack(side="bottom", padx=20, pady=(5, 20))
+
         # About Button
         self.about_button = ctk.CTkButton(
             self.sidebar_frame,
@@ -1283,6 +1370,12 @@ Comment=Similar Image Finder
         self.theme_switch.pack(side="bottom", padx=20, pady=(5, 5))
         if ctk.get_appearance_mode() == "Dark":
             self.theme_switch.select()
+
+        # Handle the Theme Switch state
+        if self.saved_theme == "Dark":
+            self.theme_switch.select()
+        elif self.saved_theme == "Light":
+            self.theme_switch.deselect()
 
         self.scrollable_frame = ctk.CTkScrollableFrame(self)
         self.scrollable_frame.grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
